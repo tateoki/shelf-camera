@@ -190,10 +190,22 @@ function kidPick(id) {
   $('kidList').innerHTML = kidHtml(); $('kidList2').innerHTML = kidHtml();
   $('kidPop').style.display = 'none'; shelfLabel();
 }
+// 受け口に JSONP で聞く（スクリプトとして読み込む。iPhone の Safari が fetch を止めても読める）
+function jsonp(url, ms = 25000) {
+  return new Promise((ok, ng) => {
+    const cb = '__sc_cb' + Date.now().toString(36) + Math.floor(Math.random() * 1e6), el = document.createElement('script');
+    const done = () => { delete window[cb]; el.remove(); clearTimeout(t); };
+    const t = setTimeout(() => { done(); ng(new Error('時間内に答えがありませんでした')); }, ms);
+    window[cb] = j => { done(); ok(j); };
+    el.onerror = () => { done(); ng(new Error('受け口に問い合わせできませんでした')); };
+    el.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(el);
+  });
+}
 async function loadKids() {
   $('kidBox').style.display = 'block'; $('kidTitle').textContent = '棚を読み込んでいます…'; $('btnStart').disabled = true;
   try {
-    const j = await (await fetch(GAS_URL + '?c=' + encodeURIComponent(CODE))).json();
+    const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
     KID.root = j.name; KID.list = j.kids || []; KID.left = j.left;
     $('kidTitle').textContent = j.name;
