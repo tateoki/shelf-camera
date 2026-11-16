@@ -11,21 +11,24 @@
   ・角度：スマホの前後の傾き（上から見下ろす／下から見上げる）が ±TILT_MAX 度を超えたら撮れない。左右の傾きは表示だけ
   ・ぼやけ：枠の中のくっきり具合・揺れ（ジャイロ）・暗さを撮る前に確かめる。撮った後にもう一度確かめる
   ・案内・ボタンは左右の暗い所（撮らない部分）に置く
-  ・スマホのカメラの機能（できる機種だけ）：オートフォーカス・自動露出・自動ホワイトバランス・タップでピント・ズーム（ボタンとピンチ）・ライト
+  ・スマホのカメラの機能（できる機種だけ）：オートフォーカス・自動露出・自動ホワイトバランス・タップでピント固定・ズーム（1×・1.5×・2×）
   ・送り先：GAS の Web アプリ（Google ドライブの「背表紙_取り込み」/棚の名前/ に、写真 .jpg と枠などの情報 .json を保存）
   URL：index.html?shelf=棚の名前&key=合言葉（shelf がなければ画面で入れる。空なら「振り分け待ち」）
 -->
 <style>
   :root { --ok: #2fbf71; --ng: #e5484d; --bg: #000; --fg: #fff; --sub: #bbb; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+  html, body { touch-action: manipulation; margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
   #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
   #start h1 { font-size: 20px; margin: 0; }
   #start p { color: var(--sub); font-size: 14px; line-height: 1.7; margin: 0; }
   #start input { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
   button { font: inherit; border: 0; border-radius: 999px; padding: 12px 22px; font-size: 16px; background: #fff; color: #000; }
   button:disabled { opacity: .35; }
-  #cam { position: fixed; inset: 0; display: none; }
+  #cam { position: fixed; inset: 0; display: none; touch-action: none; -webkit-user-select: none; user-select: none; }
+  /* ピントを合わせた所の印（固定している間は残す） */
+  #afBox { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid #ffd60a; border-radius: 4px; pointer-events: none; display: none; }
+  #afBox span { position: absolute; left: 50%; top: -24px; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 700; color: #000; background: #ffd60a; padding: 1px 6px; border-radius: 4px; }
   video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
   #frame { position: absolute; border: 3px solid var(--ng); border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #frame.ok { border-color: var(--ok); }
@@ -34,20 +37,22 @@
   #sideL, #sideR { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 8px calc(env(safe-area-inset-bottom) + 12px); }
   #sideL { left: 0; gap: 12px; font-size: 13px; }
   #sideR { right: 0; align-items: center; justify-content: center; }
+  #shutterWrap { position: relative; display: flex; flex-direction: column; align-items: center; }
   #shelfName { color: var(--sub); font-size: 12px; word-break: break-all; }
   #guide { font-weight: 700; font-size: 15px; line-height: 1.5; }
   #level { position: absolute; right: 6px; top: 50%; width: 10px; height: 140px; margin-top: -70px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
   #levelZone { position: absolute; left: 0; right: 0; background: rgba(47, 191, 113, .5); }
   #levelDot { position: absolute; left: -4px; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--ng); border: 2px solid #fff; }
   #levelDot.ok { background: var(--ok); }
-  #checks { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: 12px; }
-  #checks span { padding: 3px 9px; border-radius: 999px; background: rgba(229, 72, 77, .85); }
+  #checks { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; font-size: 17px; font-weight: 700; }
+  #checks span { padding: 8px 18px; border-radius: 999px; background: rgba(229, 72, 77, .9); }
   #checks span.ok { background: rgba(47, 191, 113, .85); }
+  /* 「?」：その機種ではセンサーで確かめられない項目（止めずに通す） */
   #shutter { width: 74px; height: 74px; padding: 0; border-radius: 50%; background: #fff; border: 5px solid rgba(255, 255, 255, .4); background-clip: padding-box; }
   #shutter.off { opacity: .35; }
-  /* スマホのカメラの機能（できる機種だけ出す）：ズーム・ライト */
-  #camTools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 18px; }
-  #camTools button { font-size: 12px; padding: 6px 0; width: 46px; border-radius: 999px; background: rgba(255, 255, 255, .18); color: #fff; }
+  /* ズーム（できる機種だけ出す）：シャッターの下 */
+  #camTools { position: absolute; top: calc(100% + 18px); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #camTools button { font-size: 14px; padding: 8px 0; width: 54px; border-radius: 999px; background: rgba(255, 255, 255, .18); color: #fff; }
   #camTools button.on { background: #fff; color: #000; font-weight: 700; }
   #zoomNow { font-size: 11px; color: var(--sub); }
   @keyframes blink { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); box-shadow: 0 0 0 3px #fff; } }
@@ -87,10 +92,10 @@
     <div id="debug"></div>
   </div>
   <div id="sideR">
-    <div id="camTools"></div>
-    <button id="shutter" class="off" aria-label="撮る"></button>
+    <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
     <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
+  <div id="afBox"><span>ピント固定</span></div>
   <div id="level"><div id="levelZone"></div><div id="levelDot"></div></div>
 </div>
 
@@ -117,6 +122,9 @@ const CONFIG = {
   ROT_MAX: 25,            // 揺れの上限（スマホの回る速さ・度/秒。ジャイロで測る。手で持って止めた状態で通る値）
   LIGHT_MIN: 45,          // 明るさの下限（0〜255）
   JPEG_Q: 0.9,            // 画質 90
+  // ズームのボタン（表示と実際の倍率）。2倍以上はデジタルズームで画質が落ちる機種があるので、「2×」は実際は 1.9 倍
+  ZOOMS: [{ v: 1, label: '1×' }, { v: 1.5, label: '1.5×' }, { v: 1.9, label: '2×' }],
+  ZOOM_MAX: 1.9,          // ピンチでもここまで
 };
 const P = new URLSearchParams(location.search);
 const GAS_URL = CONFIG.GAS_URL || P.get('gas') || '';
@@ -167,13 +175,14 @@ $('btnStart').onclick = async () => {
 
 // ---------------- スマホのカメラの機能（ブラウザから頼めるものだけ。機種が持っていない機能は出さない） ----------------
 //   ・オートフォーカス・自動露出・自動ホワイトバランス：「ずっと自動で合わせる」に設定（できる機種）
-//   ・タップでピント合わせ：タップした所にピントを合わせる（できる機種。iPhone は常に自動）
-//   ・ズーム：ボタンとピンチ（2本指）。望遠のレンズがある機種は、上げると望遠に切り替わる
-//   ・ライト：暗い所で点ける
-const CAM = { track: null, caps: {}, zoom: null, torch: false };
+//   ・タップでピント固定：タップした所にピントを合わせて固定し、黄色い枠を残す（もう一度その枠をタップで解除。できる機種だけ。iPhone は常に自動）
+//     ダブルタップ（シャッターを続けて押すときなど）ではピントを動かさない
+//   ・ズーム：1×・1.5×・2×（実際は 1.9 倍）のボタンとピンチ（2本指。1.9 倍まで）
+const CAM = { track: null, caps: {}, zoom: null, poi: false, afLock: null };
 async function camInit(tr) {
   CAM.track = tr;
   try { CAM.caps = tr.getCapabilities ? tr.getCapabilities() : {}; } catch (e) { CAM.caps = {}; }
+  CAM.poi = CAM.caps.pointsOfInterest !== undefined;
   const c = CAM.caps, adv = {};
   if ((c.focusMode || []).includes('continuous')) adv.focusMode = 'continuous';
   if ((c.exposureMode || []).includes('continuous')) adv.exposureMode = 'continuous';
@@ -185,28 +194,21 @@ async function camInit(tr) {
 function camTools() {
   const c = CAM.caps, box = $('camTools'); let h = '';
   if (c.zoom && c.zoom.max > c.zoom.min) {
-    const z = [c.zoom.min < 1 ? c.zoom.min : null, 1, 2, 3, 5].filter(x => x !== null && x >= c.zoom.min && x <= c.zoom.max);
-    h += [...new Set(z)].map(x => `<button data-zoom="${x}">${+x.toFixed(1)}×</button>`).join('') + '<div id="zoomNow"></div>';
+    const z = CONFIG.ZOOMS.filter(x => x.v >= c.zoom.min && x.v <= c.zoom.max);
+    if (z.length > 1) h += z.map(x => `<button data-zoom="${x.v}">${x.label}</button>`).join('');
   }
-  if (c.torch) h += '<button id="btnTorch">ライト</button>';
   box.innerHTML = h;
   box.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => setZoom(+b.dataset.zoom));
-  if ($('btnTorch')) $('btnTorch').onclick = async () => {
-    CAM.torch = !CAM.torch;
-    try { await CAM.track.applyConstraints({ advanced: [{ torch: CAM.torch }] }); } catch (e) { CAM.torch = false; toast('ライトを点けられませんでした'); }
-    $('btnTorch').classList.toggle('on', CAM.torch);
-  };
   zoomUi();
 }
 async function setZoom(z) {
   const c = CAM.caps.zoom; if (!c || !CAM.track) return;
-  z = Math.max(c.min, Math.min(c.max, z));
+  z = Math.max(c.min, Math.min(c.max, CONFIG.ZOOM_MAX, z));
   CAM.zoom = z; zoomUi();
   try { await CAM.track.applyConstraints({ advanced: [{ zoom: z }] }); } catch (e) {}
 }
 function zoomUi() {
   document.querySelectorAll('[data-zoom]').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.zoom - CAM.zoom) < 0.05));
-  if ($('zoomNow') && CAM.zoom) $('zoomNow').textContent = CAM.zoom.toFixed(1) + '×';
 }
 // ピンチ（2本指で広げる・狭める）でズーム
 let pinch = null;
@@ -291,35 +293,57 @@ function loop(t) {
   S.ng = [!tl.ok && '角度', !okSharp && 'ピント', !okStill && '揺れ', !okLight && '明るさ'].filter(Boolean);
   $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
     : all ? '背表紙が枠に上から下まで入っていれば、撮ってください' : '';
-  if (S.orientWarn && S.beta === null) $('ckTilt').textContent = '角度（確認できません）';
-  if (S.rot === null && t > 3000) $('ckStill').textContent = '揺れ（確認できません）';
+  if (S.orientWarn && S.beta === null) $('ckTilt').textContent = '角度 ?';
+  if (S.rot === null && t > 3000) $('ckStill').textContent = '揺れ ?';
   // 水平器
   const dot = $('levelDot');
   if (tl.err !== null && tl.err !== undefined) { const L = 140, span = 30, e = Math.max(-span, Math.min(span, tl.err)); dot.style.top = (L / 2 + L / 2 * e / span) + 'px'; dot.classList.toggle('ok', tl.ok); dot.style.display = 'block'; }
   else dot.style.display = 'none';
-  if (DEBUG) $('debug').textContent = `zoom ${CAM.caps.zoom ? CAM.caps.zoom.min + '-' + CAM.caps.zoom.max : 'なし'} torch ${CAM.caps.torch ? 'あり' : 'なし'} focus ${(CAM.caps.focusMode || []).join('/') || 'なし'} beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} rot ${S.rot === null ? '-' : S.rot.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
+  if (DEBUG) $('debug').textContent = `zoom ${CAM.caps.zoom ? CAM.caps.zoom.min + '-' + CAM.caps.zoom.max + ' now ' + (CAM.zoom || '-') : 'なし'} poi ${CAM.poi ? 'あり' : 'なし'} focus ${(CAM.caps.focusMode || []).join('/') || 'なし'} beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} rot ${S.rot === null ? '-' : S.rot.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
 }
 // 画面をタップしたらピントを合わせ直す（できる機種だけ）
-$('video').addEventListener('click', async e => {
-  const tr = CAM.track, c = CAM.caps; if (!tr) return;
-  try {
-    const adv = {};
-    if (c.pointsOfInterest !== undefined || 'pointsOfInterest' in (navigator.mediaDevices.getSupportedConstraints() || {})) {
-      const r = screenToVideo({ x: e.clientX, y: e.clientY, w: 0, h: 0 }), v = $('video');
-      adv.pointsOfInterest = [{ x: Math.min(1, Math.max(0, r.x / v.videoWidth)), y: Math.min(1, Math.max(0, r.y / v.videoHeight)) }];
-    }
-    if ((c.focusMode || []).includes('single-shot')) adv.focusMode = 'single-shot';
-    if (!Object.keys(adv).length) return;
-    await tr.applyConstraints({ advanced: [adv] });
-    if (adv.focusMode) setTimeout(() => tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {}), 1500);
-  } catch (err) {}
+//   1回だけのタップ（0.35秒以内にもう1回タップしなかった）のときだけ動く。ダブルタップ・続けてのタップは無視
+let tapT = null, lastTap = 0, afWarned = false;
+document.addEventListener('dblclick', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+$('video').addEventListener('click', e => {
+  const now = Date.now();
+  if (now - lastTap < 350) { clearTimeout(tapT); tapT = null; lastTap = now; return; }   // ダブルタップ：何もしない
+  lastTap = now;
+  const x = e.clientX, y = e.clientY;
+  tapT = setTimeout(() => { tapT = null; afTap(x, y); }, 350);
 });
+async function afTap(x, y) {
+  const tr = CAM.track, c = CAM.caps; if (!tr) return;
+  const box = $('afBox');
+  // 固定中の枠をタップ：固定を解除して自動に戻す
+  if (CAM.afLock && Math.abs(x - CAM.afLock.x) < 40 && Math.abs(y - CAM.afLock.y) < 40) {
+    CAM.afLock = null; box.style.display = 'none';
+    try { await tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (err) {}
+    toast('ピントの固定を解除しました（自動に戻しました）', 1800);
+    return;
+  }
+  const fm = c.focusMode || [];
+  if (!CAM.poi && !fm.includes('single-shot') && !fm.includes('manual')) {
+    if (!afWarned) { afWarned = true; toast('この機種は、ピントを常に自動で合わせます（タップで固定はできません）', 3000); }
+    return;
+  }
+  const adv = {};
+  if (CAM.poi) {
+    const r = screenToVideo({ x, y, w: 0, h: 0 }), v = $('video');
+    adv.pointsOfInterest = [{ x: Math.min(1, Math.max(0, r.x / v.videoWidth)), y: Math.min(1, Math.max(0, r.y / v.videoHeight)) }];
+  }
+  if (fm.includes('single-shot')) adv.focusMode = 'single-shot';   // 1回合わせて、そのまま固定（自動に戻さない）
+  try { await tr.applyConstraints({ advanced: [adv] }); } catch (err) { return; }
+  CAM.afLock = { x, y };
+  Object.assign(box.style, { left: x + 'px', top: y + 'px', display: 'block' });
+}
 
 // ---------------- 撮る → 撮った後の確認 ----------------
 $('shutter').onclick = () => {
   if (!S.all) {   // まだ撮れない：赤い項目を知らせる
     const ng = S.ng || [];
-    toast(`左の赤い項目${ng.length ? '（' + ng.join('・') + '）' : ''}がすべて緑になってから撮影してください`, 3200);
+    toast(`左の赤い項目${ng.length ? '（' + ng.join('・') + '）' : ''}がすべて緑の状態で撮影できます`, 3200);
     ng.forEach(n => { const el = $({ '角度': 'ckTilt', 'ピント': 'ckSharp', '揺れ': 'ckStill', '明るさ': 'ckLight' }[n]); el.classList.remove('blink'); void el.offsetWidth; el.classList.add('blink'); });
     return;
   }
