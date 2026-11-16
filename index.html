@@ -208,19 +208,35 @@ function jsonp(url, ms = 25000) {
     document.head.appendChild(el);
   });
 }
+// 施設の棚：待たせないように
+//   ・QR の n（棚の名前）はすぐ表示する。d=1（配下の棚がない）なら、そのカテゴリ自体に入れるので読み込まない
+//   ・前回読んだ棚の一覧（スマホが覚えている）をすぐ出し、裏で最新の一覧を読み直す
+//   ・読み込み中でも［カメラを開始］を押せる（棚を選ぶまでは撮れない。一覧が届いたら選ぶ画面を出す）
+function kidApply(name, list) {
+  KID.root = name || KID.root; KID.list = list || [];
+  $('kidTitle').textContent = KID.root;
+  if (!KID.list.length) { $('kidList').innerHTML = '<div style="color:#ff9ea1">写真を入れられる棚がまだありません</div>'; KID.sel = null; return; }
+  let last = KID.sel ? KID.sel.id : ''; if (!last) { try { last = localStorage.getItem('sc_kid_' + CODE) || ''; } catch (e) {} }
+  KID.sel = KID.list.find(k => k.id === last) || (KID.list.length === 1 ? KID.list[0] : null);
+  $('kidList').innerHTML = KID.list.length === 1 ? `<div style="font-size:14px">この棚に入れます</div>` : kidHtml();
+  $('kidList2').innerHTML = kidHtml();
+  if ($('cam').style.display === 'block') { shelfLabel(); layout(); if (!KID.sel && KID.list.length > 1) { $('btnKid').style.display = 'inline-block'; $('kidPop').style.display = 'flex'; } }
+  if (KID.list.length > 1 && $('cam').style.display === 'block') $('btnKid').style.display = 'inline-block';
+}
 async function loadKids() {
-  $('kidBox').style.display = 'block'; $('kidTitle').textContent = '棚を読み込んでいます…'; $('btnStart').disabled = true;
+  $('kidBox').style.display = 'block';
+  const name = (P.get('n') || '').trim();
+  if (P.get('d') === '1' && name) { kidApply(name, [{ id: '', label: name }]); return; }   // 配下の棚がない：読み込まない
+  let cached = null; try { cached = JSON.parse(localStorage.getItem('sc_kids_' + CODE) || 'null'); } catch (e) {}
+  if (cached && cached.list) kidApply(name || cached.name, cached.list);
+  else { KID.root = name; $('kidTitle').textContent = name || ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
   try {
     const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
-    KID.root = j.name; KID.list = j.kids || []; KID.left = j.left;
-    $('kidTitle').textContent = j.name;
-    if (!KID.list.length) { $('kidList').innerHTML = '<div style="color:#ff9ea1">写真を入れられる棚がまだありません</div>'; return; }
-    let last = ''; try { last = localStorage.getItem('sc_kid_' + CODE) || ''; } catch (e) {}
-    KID.sel = KID.list.find(k => k.id === last) || (KID.list.length === 1 ? KID.list[0] : null);
-    $('kidList').innerHTML = kidHtml(); $('kidList2').innerHTML = kidHtml();
-    $('btnStart').disabled = false;
-  } catch (e) { $('kidTitle').textContent = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; }
+    KID.left = j.left;
+    try { localStorage.setItem('sc_kids_' + CODE, JSON.stringify({ name: j.name, list: j.kids || [] })); } catch (e) {}
+    kidApply(j.name, j.kids || []);
+  } catch (e) { if (!cached) { $('kidList').innerHTML = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; } }
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
 function shelfLabel() {
@@ -239,7 +255,7 @@ $('btnStart').onclick = async () => {
     if (!KEY) { KEY = $('keyIn').value.trim(); if (!KEY) { $('startErr').textContent = '合言葉を入れてください（施設の方は、棚の QR コードから開いてください）'; return; } try { localStorage.setItem('sc_key', KEY); } catch (e) {} }
     shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
     try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
-  } else if (!KID.sel) { $('startErr').textContent = '写真を入れる棚を選んでください'; return; }
+  } else if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '写真を入れる棚を選んでください'; return; }
   try {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       const r = await DeviceOrientationEvent.requestPermission();
@@ -456,6 +472,10 @@ async function afTap(x, y) {
 
 // ---------------- 撮る → 撮った後の確認 ----------------
 $('shutter').onclick = () => {
+  if (!ADMIN && !KID.sel) {   // 施設：棚がまだ決まっていない（読み込み中・選んでいない）
+    if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
+    toast(KID.list.length ? '写真を入れる棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
+  }
   if (!S.all && !ADMIN) {   // まだ撮れない：赤い項目を知らせる（管理者は赤があっても撮れる）
     const ng = S.ng || [];
     toast(`左の赤い項目${ng.length ? '（' + ng.join('・') + '）' : ''}がすべて緑の状態で撮影できます`, 3200);
@@ -483,7 +503,10 @@ $('btnSend').onclick = () => {
 };
 
 // 標準のカメラで撮る（枠・角度の確認なし。システムは写真の中央の本を対象にする）
-$('fallback').onclick = () => $('fileIn').click();
+$('fallback').onclick = () => {
+  if (!ADMIN && !KID.sel) { if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; } toast('写真を入れる棚を選んでください'); return; }
+  $('fileIn').click();
+};
 $('fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name });
@@ -498,7 +521,7 @@ function fileName(s) {
 async function enqueue(s) {
   s.name = fileName(s);
   s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
-  s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? KID.root + ' ＞ ' + KID.sel.label : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+  s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? (KID.sel.label === KID.root ? KID.root : KID.root + ' ＞ ' + KID.sel.label) : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
     beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '' };
   S.queue.push(s); updSent();
   try { await dbPut(s); s.saved = true; }
