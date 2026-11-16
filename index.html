@@ -39,18 +39,22 @@
   #hTop { top: 8%; } #hTop span { bottom: 4px; }
   #hBot { top: 92%; } #hBot span { top: 4px; }
   /* 左右の暗い所（撮らない部分）：左＝棚・案内・確認・送った枚数、右＝シャッター・水平器・標準のカメラ */
-  #sideL, #sideR { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 8px calc(env(safe-area-inset-bottom) + 12px); }
+  #sideL, #sideR { position: absolute; top: var(--bar, 64px); bottom: 0; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 8px calc(env(safe-area-inset-bottom) + 12px); }
   #sideL { left: 0; gap: 12px; font-size: 13px; }
   #sideR { right: 0; align-items: center; justify-content: center; }
   #shutterWrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-  #shelfRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+  /* 上のバー（左右いっぱい）：棚の名前（足りなければ2行）と、右上に［棚を変える］。撮影の枠の位置は変えない（バーは暗い所に重ねる） */
+  #topBar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 6px; }
+  #topBar #shelfName { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0 4px rgba(0, 0, 0, .8); }
+  #topBar #btnKid { flex: none; }
   #shelfName { color: #fff; font-size: 17px; font-weight: 700; word-break: break-all; }
-  #guide { font-weight: 700; font-size: 15px; line-height: 1.5; }
+  #guide { font-weight: 700; font-size: 15px; line-height: 1.5; color: #ffd60a; }   /* 4つの確認の下に、直し方（黄色）。そろったら緑で「撮影できます」 */
+  #guide.ok { color: var(--ok); }
   #level { position: absolute; right: 6px; top: 50%; width: 10px; height: 140px; margin-top: -70px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
   #levelZone { position: absolute; left: 0; right: 0; background: rgba(47, 191, 113, .5); }
   #levelDot { position: absolute; left: -4px; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--ng); border: 2px solid #fff; }
   #levelDot.ok { background: var(--ok); }
-  #checks { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; font-size: 17px; font-weight: 700; }
+  #checks { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; font-size: 17px; font-weight: 700; margin-top: 48px; }
   #checks span { padding: 8px 18px; border-radius: 999px; background: rgba(229, 72, 77, .9); }
   #checks span.ok { background: rgba(47, 191, 113, .85); }
   /* 「?」：その機種ではセンサーで確かめられない項目（止めずに通す） */
@@ -67,7 +71,8 @@
   #sentN { font-size: 17px; font-weight: 700; }
   #sending { display: none; font-size: 22px; font-weight: 800; color: #000; background: #ffd60a; padding: 8px 12px; border-radius: 10px; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
-  #fallback { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
+  #rBottom { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #fallback { font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
   #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
   #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; }
   #reviewMsg { padding: 10px 16px; text-align: center; font-size: 15px; }
@@ -84,11 +89,11 @@
   #kidPop { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #kidPop > div { background: #1c1c1e; border-radius: 14px; padding: 18px; width: 100%; max-width: 340px; max-height: 80vh; overflow: auto; }
   /* 送信中の帯（画面の上） */
-  #sendBanner { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 6px); z-index: 5; display: none; background: #ffd60a; color: #000; border-radius: 10px; padding: 6px 10px; text-align: center; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 8px rgba(0, 0, 0, .4); pointer-events: none; }
-  body.sending #sideL, body.sending #btnEnd { margin-top: 84px; }   /* 帯の下にずらす */
+  #sendBanner { position: fixed; left: 8px; right: 8px; top: calc(var(--bar, 64px) + 2px); z-index: 5; display: none; background: #ffd60a; color: #000; border-radius: 10px; padding: 6px 10px; text-align: center; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 8px rgba(0, 0, 0, .4); pointer-events: none; }
+  body.sending #sideL { margin-top: 84px; }   /* 帯の下にずらす */
   #sendBanner b { font-size: 16px; }
   /* 撮影を終わる */
-  #btnEnd { position: absolute; top: calc(env(safe-area-inset-top) + 12px); font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #btnEnd { font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #endBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #endIn { background: #1c1c1e; border-radius: 14px; padding: 22px 18px; max-width: 340px; width: 100%; text-align: center; }
   #endMsg { font-size: 17px; font-weight: 700; line-height: 1.6; margin-bottom: 6px; }
@@ -121,16 +126,16 @@
 <div id="cam">
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
+  <div id="topBar"><div id="shelfName"></div><button id="btnKid">棚を変える</button></div>
   <div id="sideL">
-    <div id="shelfRow"><div id="shelfName"></div><button id="btnKid">棚を変える</button></div><div id="guide">準備中…</div>
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
+    <div id="guide">準備中…</div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
   <div id="sideR">
-    <button id="btnEnd">撮影を<br>終わる</button>
     <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
-    <button id="fallback">標準の<br>カメラで撮る</button>
+    <div id="rBottom"><button id="fallback">標準の<br>カメラで撮る</button><button id="btnEnd">撮影を<br>終わる</button></div>
   </div>
   <div id="afBox"><span>ピント固定</span></div>
   <div id="level"><div id="levelZone"></div><div id="levelDot"></div></div>
@@ -190,7 +195,7 @@ function kidPick(id) {
   KID.sel = KID.list.find(k => k.id === id) || null;
   try { localStorage.setItem('sc_kid_' + CODE, id); } catch (e) {}
   $('kidList').innerHTML = kidHtml(); $('kidList2').innerHTML = kidHtml();
-  $('kidPop').style.display = 'none'; shelfLabel();
+  $('kidPop').style.display = 'none'; shelfLabel(); if ($('cam').style.display === 'block') layout();
 }
 // 受け口に JSONP で聞く（スクリプトとして読み込む。iPhone の Safari が fetch を止めても読める）
 function jsonp(url, ms = 25000) {
@@ -220,7 +225,7 @@ async function loadKids() {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
 function shelfLabel() {
-  $('shelfName').textContent = ADMIN ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + KID.root + (KID.sel ? ' ＞ ' + KID.sel.label : '');
+  $('shelfName').textContent = ADMIN ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + KID.root + (KID.sel && KID.sel.label !== KID.root ? ' ＞ ' + KID.sel.label : '');
 }
 
 const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
@@ -350,6 +355,7 @@ function tiltState() {
 let FR = null;   // 画面の上の枠 {x,y,w,h}
 function layout() {
   const W = innerWidth, H = innerHeight;
+  document.documentElement.style.setProperty('--bar', ($('topBar').offsetHeight || 64) + 'px');
   const h = H * CONFIG.FRAME_H, w = W * CONFIG.FRAME_W;
   FR = { x: (W - w) / 2, y: (H - h) / 2, w, h };
   Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
@@ -401,7 +407,7 @@ function loop(t) {
   mark('ckSharp', 'ピント', okSharp, false);
   mark('ckStill', '揺れ', okStill, S.rot === null && t > 3000);
   mark('ckLight', '明るさ', okLight, false);
-  $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all); S.all = all;
+  $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all && !ADMIN); S.all = all; $('guide').classList.toggle('ok', all);
   S.ng = [!tl.ok && '角度', !okSharp && 'ピント', !okStill && '揺れ', !okLight && '明るさ'].filter(Boolean);
   $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
     : all ? '撮影できます' : '';
@@ -451,7 +457,7 @@ async function afTap(x, y) {
 
 // ---------------- 撮る → 撮った後の確認 ----------------
 $('shutter').onclick = () => {
-  if (!S.all) {   // まだ撮れない：赤い項目を知らせる
+  if (!S.all && !ADMIN) {   // まだ撮れない：赤い項目を知らせる（管理者は赤があっても撮れる）
     const ng = S.ng || [];
     toast(`左の赤い項目${ng.length ? '（' + ng.join('・') + '）' : ''}がすべて緑の状態で撮影できます`, 3200);
     ng.forEach(n => { const el = $({ '角度': 'ckTilt', 'ピント': 'ckSharp', '揺れ': 'ckStill', '明るさ': 'ckLight' }[n]); el.classList.remove('blink'); void el.offsetWidth; el.classList.add('blink'); });
