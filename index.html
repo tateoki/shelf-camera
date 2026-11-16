@@ -87,7 +87,7 @@
   <div id="frame"></div>
   <div id="sideL">
     <div id="shelfName"></div><div id="guide">準備中…</div>
-    <div id="checks"><span id="ckTilt">角度</span><span id="ckSharp">ピント</span><span id="ckStill">揺れ</span><span id="ckLight">明るさ</span></div>
+    <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="sent">送った写真：0枚</div>
     <div id="debug"></div>
   </div>
@@ -123,7 +123,7 @@ const CONFIG = {
   LIGHT_MIN: 45,          // 明るさの下限（0〜255）
   JPEG_Q: 0.9,            // 画質 90
   // ズームのボタン（表示と実際の倍率）。2倍以上はデジタルズームで画質が落ちる機種があるので、「2×」は実際は 1.9 倍
-  ZOOMS: [{ v: 1, label: '1×' }, { v: 1.5, label: '1.5×' }, { v: 1.9, label: '2×' }],
+  ZOOMS: [{ v: 1, label: '1×' }, { v: 1.25, label: '1.25×' }, { v: 1.5, label: '1.5×' }, { v: 1.9, label: '2×' }],
   ZOOM_MAX: 1.9,          // ピンチでもここまで
 };
 const P = new URLSearchParams(location.search);
@@ -177,7 +177,7 @@ $('btnStart').onclick = async () => {
 //   ・オートフォーカス・自動露出・自動ホワイトバランス：「ずっと自動で合わせる」に設定（できる機種）
 //   ・タップでピント固定：タップした所にピントを合わせて固定し、黄色い枠を残す（もう一度その枠をタップで解除。できる機種だけ。iPhone は常に自動）
 //     ダブルタップ（シャッターを続けて押すときなど）ではピントを動かさない
-//   ・ズーム：1×・1.5×・2×（実際は 1.9 倍）のボタンとピンチ（2本指。1.9 倍まで）
+//   ・ズーム：1×・1.25×・1.5×・2×（実際は 1.9 倍）のボタンとピンチ（2本指。1.9 倍まで）
 const CAM = { track: null, caps: {}, zoom: null, poi: false, afLock: null };
 async function camInit(tr) {
   CAM.track = tr;
@@ -288,13 +288,16 @@ function loop(t) {
   const tl = tiltState();
   const okSharp = S.sharp >= CONFIG.SHARP_MIN, okStill = S.rot === null || S.rot <= CONFIG.ROT_MAX, okLight = S.light >= CONFIG.LIGHT_MIN;
   const all = tl.ok && okSharp && okStill && okLight;
-  $('ckTilt').className = tl.ok ? 'ok' : ''; $('ckSharp').className = okSharp ? 'ok' : ''; $('ckStill').className = okStill ? 'ok' : ''; $('ckLight').className = okLight ? 'ok' : '';
+  // 色だけでなく ○（撮れる）・×（撮れない）も付ける。センサーで確かめられない項目は ?（止めない）
+  const mark = (id, name, ok, unknown) => { const el = $(id), txt = name + ' ' + (unknown ? '?' : ok ? '○' : '×'); if (el.textContent !== txt) el.textContent = txt; el.classList.toggle('ok', ok); };
+  mark('ckTilt', '角度', tl.ok, S.orientWarn && S.beta === null);
+  mark('ckSharp', 'ピント', okSharp, false);
+  mark('ckStill', '揺れ', okStill, S.rot === null && t > 3000);
+  mark('ckLight', '明るさ', okLight, false);
   $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all); S.all = all;
   S.ng = [!tl.ok && '角度', !okSharp && 'ピント', !okStill && '揺れ', !okLight && '明るさ'].filter(Boolean);
   $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
     : all ? '背表紙が枠に上から下まで入っていれば、撮ってください' : '';
-  if (S.orientWarn && S.beta === null) $('ckTilt').textContent = '角度 ?';
-  if (S.rot === null && t > 3000) $('ckStill').textContent = '揺れ ?';
   // 水平器
   const dot = $('levelDot');
   if (tl.err !== null && tl.err !== undefined) { const L = 140, span = 30, e = Math.max(-span, Math.min(span, tl.err)); dot.style.top = (L / 2 + L / 2 * e / span) + 'px'; dot.classList.toggle('ok', tl.ok); dot.style.display = 'block'; }
@@ -338,6 +341,16 @@ async function afTap(x, y) {
   CAM.afLock = { x, y };
   Object.assign(box.style, { left: x + 'px', top: y + 'px', display: 'block' });
 }
+
+// 音量ボタン・Bluetooth のシャッターリモコン：ブラウザにキーとして届く機種だけ、シャッターとして使う
+//   （iPhone の Safari・多くの Android の Chrome には届かない。届かない機種では何も起きない）
+const SHUTTER_KEYS = ['AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown', 'Enter', ' ', 'Camera'];
+addEventListener('keydown', e => {
+  if (!SHUTTER_KEYS.includes(e.key) || $('cam').style.display !== 'block') return;
+  e.preventDefault();
+  if ($('review').style.display === 'flex') return;
+  $('shutter').click();
+});
 
 // ---------------- 撮る → 撮った後の確認 ----------------
 $('shutter').onclick = () => {
