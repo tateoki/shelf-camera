@@ -248,9 +248,7 @@ $('btnStart').onclick = async () => {
   window.addEventListener('deviceorientation', onOrient);
   window.addEventListener('devicemotion', onMotion);
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } } });
-    const v = $('video'); v.srcObject = stream; await v.play();
-    await camInit(stream.getVideoTracks()[0]);
+    await camOpen();
   } catch (e) {
     $('startErr').textContent = 'カメラを使えませんでした（' + e.name + '）。下の［標準のカメラで撮る］を使ってください';
     const b = document.createElement('button'); b.textContent = '標準のカメラで撮る'; b.onclick = () => $('fileIn').click(); $('start').appendChild(b);
@@ -264,6 +262,21 @@ $('btnStart').onclick = async () => {
   requestAnimationFrame(loop);
 };
 
+// カメラを開く・止める（撮影を終わるの確認の間・終わった後は止める。撮影に戻る・続けて撮影するで開き直す）
+async function camOpen() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } } });
+  const v = $('video'); v.srcObject = stream; await v.play();
+  await camInit(stream.getVideoTracks()[0]);
+  if (CAM.zoom && CAM.caps.zoom) setZoom(CAM.zoom);   // 前に選んでいたズームに戻す
+}
+function camStop() {
+  try { const st = $('video').srcObject; if (st) st.getTracks().forEach(t => t.stop()); $('video').srcObject = null; } catch (e) {}
+}
+async function camBack() {   // 撮影の画面に戻る（カメラを開き直す）
+  S.ending = null; $('endBox').style.display = 'none';
+  try { await camOpen(); } catch (e) { toast('カメラを開けませんでした（' + e.name + '）', 4000); }
+  $('cam').style.display = 'block'; S.prev = null; updSent();
+}
 $('btnKid').onclick = () => { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; };
 $('kidPop').onclick = e => { if (e.target.id === 'kidPop') $('kidPop').style.display = 'none'; };
 
@@ -547,11 +560,12 @@ function updSent() {
 $('btnEnd').onclick = () => {
   const n = S.queue.length;
   if (!n) { endDone(); return; }
+  camStop(); $('cam').style.display = 'none';
   endShow(`まだ送っていない写真が ${n} 枚あります`, '送らずに終わると、その写真は送られません',
     [['送り終わるまで待つ', '', () => { S.ending = 'wait'; endWaitUi(); }], ['送らずに終わる', 'sub', () => {
       if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
       S.queue.length = 0; dbClear(); endDone(true);
-    }], ['撮影に戻る', 'sub', endHide]]);
+    }], ['撮影に戻る', 'sub', camBack]]);
 };
 function endShow(msg, sub, btns) {
   $('endMsg').textContent = msg; $('endSub').textContent = sub;
@@ -567,14 +581,14 @@ function endWaitUi() {
     [['送らずに終わる', 'sub', () => {
       if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
       S.queue.length = 0; dbClear(); endDone(true);
-    }], ['撮影に戻る', 'sub', endHide]]);
+    }], ['撮影に戻る', 'sub', camBack]]);
 }
 function endDone(dropped) {
   S.ending = 'done';
-  try { const st = $('video').srcObject; if (st) st.getTracks().forEach(t => t.stop()); } catch (e) {}
+  camStop();
   $('cam').style.display = 'none'; $('sendBanner').style.display = 'none'; document.body.classList.remove('sending');
   endShow(dropped ? '撮影を終わりました' : '送り終わりました', `送った写真：${S.sent} 枚\nこのページを閉じて大丈夫です`,
-    [['続けて撮影する', '', () => location.reload()]]);
+    [['続けて撮影する', '', camBack]]);   // 棚はそのまま、すぐ撮影の画面に戻る
   $('endSub').style.whiteSpace = 'pre-line';
 }
 const b64 = blob => new Promise((ok, ng) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ng; r.readAsDataURL(blob); });
