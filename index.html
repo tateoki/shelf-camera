@@ -45,8 +45,8 @@
   #shutterWrap { position: relative; display: flex; flex-direction: column; align-items: center; }
   /* 上のバー（左右いっぱい）：棚の名前（足りなければ2行）と、右上に［棚を変える］。撮影の枠の位置は変えない（バーは暗い所に重ねる） */
   #topBar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 6px; }
-  #topBar #shelfName { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0 4px rgba(0, 0, 0, .8); }
-  #topBtns { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }   /* 右上：［撮影を終わる］の下に［棚を変える］ */
+  #topBar #shelfName { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0 4px rgba(0, 0, 0, .8); align-self: flex-start; padding-top: 6px; }   /* 棚の名前は上にそろえる（ボタンが2段でも1行目に出す） */
+  #topBtns { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }   /* 右上：［撮影を終わる］の下に［棚を変える］（2つは同じ幅） */
   #shelfName { color: #fff; font-size: 17px; font-weight: 700; word-break: break-all; }
   #guide { font-weight: 700; font-size: 15px; line-height: 1.5; color: #ffd60a; }   /* 4つの確認の下に、直し方（黄色）。そろったら緑で「撮影できます」 */
   #guide.ok { color: var(--ok); }
@@ -84,7 +84,7 @@
   .kidList button { background: rgba(255, 255, 255, .15); color: #fff; border-radius: 10px; text-align: left; padding: 12px 14px; }
   .kidList button.on { background: #fff; color: #000; font-weight: 700; }
   /* 操作のボタン（棚を変える・撮影を終わる）：状態の表示（緑・赤）と見分けられるよう、白地に黒の文字 */
-  #btnKid { display: none; font-size: 15px; font-weight: 700; padding: 7px 14px; border-radius: 999px; background: #fff; color: #000; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #btnKid { display: none; white-space: nowrap; text-align: center; font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #kidPop { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #kidPop > div { background: #1c1c1e; border-radius: 14px; padding: 18px; width: 100%; max-width: 340px; max-height: 80vh; overflow: auto; }
   /* 送信中の帯（画面の上） */
@@ -92,7 +92,7 @@
   body.sending #sideL { margin-top: 84px; }   /* 帯の下にずらす */
   #sendBanner b { font-size: 16px; }
   /* 撮影を終わる */
-  #btnEnd { white-space: nowrap; font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #btnEnd { white-space: nowrap; text-align: center; font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #endBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #endIn { background: #1c1c1e; border-radius: 14px; padding: 22px 18px; max-width: 340px; width: 100%; text-align: center; }
   #endMsg { font-size: 17px; font-weight: 700; line-height: 1.6; margin-bottom: 6px; }
