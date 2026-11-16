@@ -9,7 +9,8 @@
   背表紙の撮影ページ（●写真から書籍特定機能・試作 v1）
   ・中央の縦長の枠（外側は暗く）に背表紙を収めて撮る
   ・角度：スマホの前後の傾き（上から見下ろす／下から見上げる）が ±TILT_MAX 度を超えたら撮れない。左右の傾きは表示だけ
-  ・ぼやけ：枠の中のくっきり具合・揺れ・暗さを撮る前に確かめる。撮った後にもう一度確かめる
+  ・ぼやけ：枠の中のくっきり具合・揺れ（ジャイロ）・暗さを撮る前に確かめる。撮った後にもう一度確かめる
+  ・案内・ボタンは左右の暗い所（撮らない部分）に置く
   ・送り先：GAS の Web アプリ（Google ドライブの「背表紙_取り込み」/棚の名前/ に、写真 .jpg と枠などの情報 .json を保存）
   URL：index.html?shelf=棚の名前&key=合言葉（shelf がなければ画面で入れる。空なら「振り分け待ち」）
 -->
@@ -28,20 +29,22 @@
   #frame { position: absolute; border: 3px solid var(--ng); border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #frame.ok { border-color: var(--ok); }
   #frame::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, .35); }
-  #top { position: absolute; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; text-align: center; font-size: 14px; }
-  #shelfName { color: var(--sub); font-size: 12px; }
-  #guide { font-weight: 600; margin-top: 2px; }
-  #level { position: absolute; right: 10px; top: 50%; width: 10px; height: 140px; margin-top: -70px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
+  /* 左右の暗い所（撮らない部分）：左＝棚・案内・確認・送った枚数、右＝シャッター・水平器・標準のカメラ */
+  #sideL, #sideR { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 8px calc(env(safe-area-inset-bottom) + 12px); }
+  #sideL { left: 0; gap: 12px; font-size: 13px; }
+  #sideR { right: 0; align-items: center; justify-content: center; }
+  #shelfName { color: var(--sub); font-size: 12px; word-break: break-all; }
+  #guide { font-weight: 700; font-size: 15px; line-height: 1.5; }
+  #level { position: absolute; right: 6px; top: 50%; width: 10px; height: 140px; margin-top: -70px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
   #levelZone { position: absolute; left: 0; right: 0; background: rgba(47, 191, 113, .5); }
   #levelDot { position: absolute; left: -4px; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--ng); border: 2px solid #fff; }
   #levelDot.ok { background: var(--ok); }
-  #checks { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 104px); display: flex; justify-content: center; gap: 6px; font-size: 12px; }
+  #checks { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: 12px; }
   #checks span { padding: 3px 9px; border-radius: 999px; background: rgba(229, 72, 77, .85); }
   #checks span.ok { background: rgba(47, 191, 113, .85); }
-  #bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(env(safe-area-inset-bottom) + 16px); display: flex; align-items: center; justify-content: space-between; }
   #shutter { width: 74px; height: 74px; padding: 0; border-radius: 50%; background: #fff; border: 5px solid rgba(255, 255, 255, .4); background-clip: padding-box; }
-  #sent { min-width: 80px; font-size: 12px; color: var(--sub); }
-  #fallback { font-size: 12px; padding: 8px 12px; background: rgba(255, 255, 255, .15); color: #fff; }
+  #sent { margin-top: auto; font-size: 12px; color: var(--sub); }
+  #fallback { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
   #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
   #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; }
   #reviewMsg { padding: 10px 16px; text-align: center; font-size: 15px; }
@@ -50,7 +53,7 @@
   #reviewBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
   #toast { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
   canvas { display: none; }
-  #debug { position: absolute; left: 6px; bottom: 6px; font-size: 10px; color: #888; display: none; }
+  #debug { font-size: 10px; color: #999; display: none; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -68,15 +71,17 @@
 <div id="cam">
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"></div>
-  <div id="top"><div id="shelfName"></div><div id="guide">準備中…</div></div>
-  <div id="level"><div id="levelZone"></div><div id="levelDot"></div></div>
-  <div id="checks"><span id="ckTilt">角度</span><span id="ckSharp">ピント</span><span id="ckStill">揺れ</span><span id="ckLight">明るさ</span></div>
-  <div id="bottom">
+  <div id="sideL">
+    <div id="shelfName"></div><div id="guide">準備中…</div>
+    <div id="checks"><span id="ckTilt">角度</span><span id="ckSharp">ピント</span><span id="ckStill">揺れ</span><span id="ckLight">明るさ</span></div>
     <div id="sent">送った写真：0枚</div>
-    <button id="shutter" disabled aria-label="撮る"></button>
-    <button id="fallback">標準のカメラで撮る</button>
+    <div id="debug"></div>
   </div>
-  <div id="debug"></div>
+  <div id="sideR">
+    <button id="shutter" disabled aria-label="撮る"></button>
+    <button id="fallback">標準の<br>カメラで撮る</button>
+  </div>
+  <div id="level"><div id="levelZone"></div><div id="levelDot"></div></div>
 </div>
 
 <div id="review">
@@ -95,11 +100,11 @@
 const CONFIG = {
   GAS_URL: 'https://script.google.com/macros/s/AKfycbwjLMBAuYXmrCRprISEhkbh5Pdf1ccbeGh-RJh7o6_4QxjTNId9usnozvGE0NEDiCAwag/exec',            // GAS の Web アプリの URL（https://script.google.com/macros/s/…/exec）。空なら URL の ?gas= を使う
   FRAME_W: 1 / 3,         // 枠の幅（画面の幅に対する割合）
-  FRAME_H: 0.85,          // 枠の高さ（上下の帯を除いた、カメラの見えている高さに対する割合）
+  FRAME_H: 0.92,          // 枠の高さ（画面の高さに対する割合。案内・ボタンは左右の暗い所に置くので、上下は使い切る）
   TILT_MAX: 5,            // 前後の傾きの許す範囲（度）
   SHARP_MIN: 18,          // くっきり具合の下限（枠の中のエッジの強さ。実機で調整する）
   SHARP_AFTER_RATIO: 0.6, // 撮った後：撮る前の値のこの割合より下ならぼやけとみなす
-  MOVE_MAX: 6,            // 揺れの上限（前のコマとの差の平均）
+  ROT_MAX: 25,            // 揺れの上限（スマホの回る速さ・度/秒。ジャイロで測る。手で持って止めた状態で通る値）
   LIGHT_MIN: 45,          // 明るさの下限（0〜255）
   JPEG_Q: 0.9,            // 画質 90
 };
@@ -113,7 +118,7 @@ let shelf = P.get('shelf') || '';
 if (shelf) { $('shelfIn').value = shelf; $('shelfBox').style.display = 'none'; }
 try { if (!shelf) $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {}
 
-const S = { beta: null, gamma: null, tiltOk: false, sharp: 0, move: 99, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
+const S = { beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
 
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
 
@@ -129,7 +134,11 @@ $('btnStart').onclick = async () => {
       if (r !== 'granted') S.orientWarn = true;
     }
   } catch (e) { S.orientWarn = true; }
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') await DeviceMotionEvent.requestPermission();
+  } catch (e) {}
   window.addEventListener('deviceorientation', onOrient);
+  window.addEventListener('devicemotion', onMotion);
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } } });
     const v = $('video'); v.srcObject = stream; await v.play();
@@ -153,6 +162,12 @@ function onOrient(e) {
   if (e.beta === null || e.beta === undefined) return;
   S.beta = e.beta; S.gamma = e.gamma;
 }
+// 揺れ：ジャイロの回る速さ（度/秒）。センサーがない機種は確かめない（撮った後のぼやけの確認で救う）
+function onMotion(e) {
+  const r = e.rotationRate; if (!r || r.alpha === null) return;
+  const v = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0);
+  S.rot = S.rot === null ? v : S.rot * 0.7 + v * 0.3;
+}
 function tiltState() {
   if (S.beta === null) return { ok: true, msg: '', err: null };   // センサーがない：止めない（下に知らせる）
   const err = S.beta - 90;
@@ -165,10 +180,10 @@ function tiltState() {
 let FR = null;   // 画面の上の枠 {x,y,w,h}
 function layout() {
   const W = innerWidth, H = innerHeight;
-  const top = 64, bot = 150;   // 上の案内・下のボタンの帯
-  const h = (H - top - bot) * CONFIG.FRAME_H, w = W * CONFIG.FRAME_W;
-  FR = { x: (W - w) / 2, y: top + (H - top - bot - h) / 2, w, h };
+  const h = H * CONFIG.FRAME_H, w = W * CONFIG.FRAME_W;
+  FR = { x: (W - w) / 2, y: (H - h) / 2, w, h };
   Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
+  $('sideL').style.width = $('sideR').style.width = Math.max(0, FR.x - 4) + 'px';
   const lz = $('levelZone'), L = 140, span = 30;   // 水平器：±30度を表示、緑の帯が許す範囲
   lz.style.top = (L / 2 - L / 2 * CONFIG.TILT_MAX / span) + 'px'; lz.style.height = (L * CONFIG.TILT_MAX / span) + 'px';
 }
@@ -208,18 +223,19 @@ function loop(t) {
     S.prev = m.gray;
   }
   const tl = tiltState();
-  const okSharp = S.sharp >= CONFIG.SHARP_MIN, okStill = S.move <= CONFIG.MOVE_MAX, okLight = S.light >= CONFIG.LIGHT_MIN;
+  const okSharp = S.sharp >= CONFIG.SHARP_MIN, okStill = S.rot === null || S.rot <= CONFIG.ROT_MAX, okLight = S.light >= CONFIG.LIGHT_MIN;
   const all = tl.ok && okSharp && okStill && okLight;
   $('ckTilt').className = tl.ok ? 'ok' : ''; $('ckSharp').className = okSharp ? 'ok' : ''; $('ckStill').className = okStill ? 'ok' : ''; $('ckLight').className = okLight ? 'ok' : '';
   $('frame').classList.toggle('ok', all); $('shutter').disabled = !all;
   $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
-    : all ? '背表紙が枠の中に上から下まで入っていれば、撮ってください' : '';
+    : all ? '背表紙が枠に上から下まで入っていれば、撮ってください' : '';
   if (S.orientWarn && S.beta === null) $('ckTilt').textContent = '角度（確認できません）';
+  if (S.rot === null && t > 3000) $('ckStill').textContent = '揺れ（確認できません）';
   // 水平器
   const dot = $('levelDot');
   if (tl.err !== null && tl.err !== undefined) { const L = 140, span = 30, e = Math.max(-span, Math.min(span, tl.err)); dot.style.top = (L / 2 + L / 2 * e / span) + 'px'; dot.classList.toggle('ok', tl.ok); dot.style.display = 'block'; }
   else dot.style.display = 'none';
-  if (DEBUG) $('debug').textContent = `beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
+  if (DEBUG) $('debug').textContent = `beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} rot ${S.rot === null ? '-' : S.rot.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
 }
 // 画面をタップしたらピントを合わせ直す（できる機種だけ）
 $('video').addEventListener('click', async () => {
