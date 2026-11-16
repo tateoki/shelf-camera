@@ -46,7 +46,7 @@
   /* 上のバー（左右いっぱい）：棚の名前（足りなければ2行）と、右上に［棚を変える］。撮影の枠の位置は変えない（バーは暗い所に重ねる） */
   #topBar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 6px; }
   #topBar #shelfName { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0 4px rgba(0, 0, 0, .8); }
-  #topBar #btnKid { flex: none; }
+  #topBtns { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }   /* 右上：［撮影を終わる］の下に［棚を変える］ */
   #shelfName { color: #fff; font-size: 17px; font-weight: 700; word-break: break-all; }
   #guide { font-weight: 700; font-size: 15px; line-height: 1.5; color: #ffd60a; }   /* 4つの確認の下に、直し方（黄色）。そろったら緑で「撮影できます」 */
   #guide.ok { color: var(--ok); }
@@ -61,8 +61,8 @@
   #shutter { width: 74px; height: 74px; padding: 0; border-radius: 50%; background: #fff; border: 5px solid rgba(255, 255, 255, .4); background-clip: padding-box; }
   #shutter.off { opacity: .35; }
   /* ズーム（できる機種だけ出す）：シャッターの下 */
-  #camTools { position: absolute; top: calc(100% + 18px); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  #camTools button { font-size: 14px; padding: 8px 0; width: 54px; border-radius: 999px; background: rgba(255, 255, 255, .18); color: #fff; }
+  #camTools { position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(2, 50px); gap: 6px; }   /* ズーム：2列（下の［標準のカメラで撮る］と重ならないように） */
+  #camTools button { font-size: 13px; padding: 8px 0; width: 50px; border-radius: 999px; background: rgba(255, 255, 255, .18); color: #fff; }
   #camTools button.on { background: #fff; color: #000; font-weight: 700; }
   #zoomNow { font-size: 11px; color: var(--sub); }
   @keyframes blink { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); box-shadow: 0 0 0 3px #fff; } }
@@ -71,8 +71,7 @@
   #sentN { font-size: 17px; font-weight: 700; }
   #sending { display: none; font-size: 22px; font-weight: 800; color: #000; background: #ffd60a; padding: 8px 12px; border-radius: 10px; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
-  #rBottom { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  #fallback { font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
+  #fallback { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
   #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
   #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; }
   #reviewMsg { padding: 10px 16px; text-align: center; font-size: 15px; }
@@ -93,7 +92,7 @@
   body.sending #sideL { margin-top: 84px; }   /* 帯の下にずらす */
   #sendBanner b { font-size: 16px; }
   /* 撮影を終わる */
-  #btnEnd { font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #btnEnd { white-space: nowrap; font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #endBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #endIn { background: #1c1c1e; border-radius: 14px; padding: 22px 18px; max-width: 340px; width: 100%; text-align: center; }
   #endMsg { font-size: 17px; font-weight: 700; line-height: 1.6; margin-bottom: 6px; }
@@ -126,7 +125,7 @@
 <div id="cam">
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
-  <div id="topBar"><div id="shelfName"></div><button id="btnKid">棚を変える</button></div>
+  <div id="topBar"><div id="shelfName"></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button></div></div>
   <div id="sideL">
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
@@ -135,7 +134,7 @@
   </div>
   <div id="sideR">
     <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
-    <div id="rBottom"><button id="fallback">標準の<br>カメラで撮る</button><button id="btnEnd">撮影を<br>終わる</button></div>
+    <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
   <div id="afBox"><span>ピント固定</span></div>
   <div id="level"><div id="levelZone"></div><div id="levelDot"></div></div>
