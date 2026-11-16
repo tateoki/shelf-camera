@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>背表紙を撮る｜タテオキ</title>
+<!--
+  背表紙の撮影ページ（●写真から書籍特定機能・試作 v1）
+  ・中央の縦長の枠（外側は暗く）に背表紙を収めて撮る
+  ・角度：スマホの前後の傾き（上から見下ろす／下から見上げる）が ±TILT_MAX 度を超えたら撮れない。左右の傾きは表示だけ
+  ・ぼやけ：枠の中のくっきり具合・揺れ・暗さを撮る前に確かめる。撮った後にもう一度確かめる
+  ・送り先：GAS の Web アプリ（Google ドライブの「背表紙_取り込み」/棚の名前/ に、写真 .jpg と枠などの情報 .json を保存）
+  URL：index.html?shelf=棚の名前&key=合言葉（shelf がなければ画面で入れる。空なら「振り分け待ち」）
+-->
+<style>
+  :root { --ok: #2fbf71; --ng: #e5484d; --bg: #000; --fg: #fff; --sub: #bbb; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
+  #start h1 { font-size: 20px; margin: 0; }
+  #start p { color: var(--sub); font-size: 14px; line-height: 1.7; margin: 0; }
+  #start input { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 12px 22px; font-size: 16px; background: #fff; color: #000; }
+  button:disabled { opacity: .35; }
+  #cam { position: fixed; inset: 0; display: none; }
+  video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+  #frame { position: absolute; border: 3px solid var(--ng); border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
+  #frame.ok { border-color: var(--ok); }
+  #frame::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, .35); }
+  #top { position: absolute; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; text-align: center; font-size: 14px; }
+  #shelfName { color: var(--sub); font-size: 12px; }
+  #guide { font-weight: 600; margin-top: 2px; }
+  #level { position: absolute; right: 10px; top: 50%; width: 10px; height: 140px; margin-top: -70px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
+  #levelZone { position: absolute; left: 0; right: 0; background: rgba(47, 191, 113, .5); }
+  #levelDot { position: absolute; left: -4px; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--ng); border: 2px solid #fff; }
+  #levelDot.ok { background: var(--ok); }
+  #checks { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 104px); display: flex; justify-content: center; gap: 6px; font-size: 12px; }
+  #checks span { padding: 3px 9px; border-radius: 999px; background: rgba(229, 72, 77, .85); }
+  #checks span.ok { background: rgba(47, 191, 113, .85); }
+  #bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(env(safe-area-inset-bottom) + 16px); display: flex; align-items: center; justify-content: space-between; }
+  #shutter { width: 74px; height: 74px; padding: 0; border-radius: 50%; background: #fff; border: 5px solid rgba(255, 255, 255, .4); background-clip: padding-box; }
+  #sent { min-width: 80px; font-size: 12px; color: var(--sub); }
+  #fallback { font-size: 12px; padding: 8px 12px; background: rgba(255, 255, 255, .15); color: #fff; }
+  #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
+  #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; }
+  #reviewMsg { padding: 10px 16px; text-align: center; font-size: 15px; }
+  #reviewMsg.ng { color: #ff9ea1; }
+  #reviewBtns { display: flex; gap: 12px; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom) + 18px); }
+  #reviewBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
+  #toast { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
+  canvas { display: none; }
+  #debug { position: absolute; left: 6px; bottom: 6px; font-size: 10px; color: #888; display: none; }
+</style>
+</head>
+<body>
+<div id="start">
+  <h1>背表紙を撮る</h1>
+  <p>画面の中央の枠に、撮りたい本の背表紙が<br><b>上から下まで全部</b>収まるように撮ってください。<br>枠が<b style="color:var(--ok)">緑</b>になったら撮れます。</p>
+  <div id="shelfBox" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px">
+    <label for="shelfIn" style="font-size:13px;color:var(--sub)">棚の名前（わからなければ空のままで大丈夫です）</label>
+    <input id="shelfIn" placeholder="例：kernel本郷 2階 ビジネス">
+  </div>
+  <button id="btnStart">カメラを開始</button>
+  <p id="startErr" style="color:#ff9ea1"></p>
+</div>
+
+<div id="cam">
+  <video id="video" playsinline muted autoplay></video>
+  <div id="frame"></div>
+  <div id="top"><div id="shelfName"></div><div id="guide">準備中…</div></div>
+  <div id="level"><div id="levelZone"></div><div id="levelDot"></div></div>
+  <div id="checks"><span id="ckTilt">角度</span><span id="ckSharp">ピント</span><span id="ckStill">揺れ</span><span id="ckLight">明るさ</span></div>
+  <div id="bottom">
+    <div id="sent">送った写真：0枚</div>
+    <button id="shutter" disabled aria-label="撮る"></button>
+    <button id="fallback">標準のカメラで撮る</button>
+  </div>
+  <div id="debug"></div>
+</div>
+
+<div id="review">
+  <img id="reviewImg" alt="">
+  <div id="reviewMsg"></div>
+  <div id="reviewBtns"><button class="sub" id="btnRetake">撮り直す</button><button id="btnSend">送る</button></div>
+</div>
+
+<input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
+<canvas id="work"></canvas>
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ---------------- 設定 ----------------
+const CONFIG = {
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbwjLMBAuYXmrCRprISEhkbh5Pdf1ccbeGh-RJh7o6_4QxjTNId9usnozvGE0NEDiCAwag/exec',            // GAS の Web アプリの URL（https://script.google.com/macros/s/…/exec）。空なら URL の ?gas= を使う
+  FRAME_W: 1 / 3,         // 枠の幅（画面の幅に対する割合）
+  FRAME_H: 0.85,          // 枠の高さ（上下の帯を除いた、カメラの見えている高さに対する割合）
+  TILT_MAX: 5,            // 前後の傾きの許す範囲（度）
+  SHARP_MIN: 18,          // くっきり具合の下限（枠の中のエッジの強さ。実機で調整する）
+  SHARP_AFTER_RATIO: 0.6, // 撮った後：撮る前の値のこの割合より下ならぼやけとみなす
+  MOVE_MAX: 6,            // 揺れの上限（前のコマとの差の平均）
+  LIGHT_MIN: 45,          // 明るさの下限（0〜255）
+  JPEG_Q: 0.9,            // 画質 90
+};
+const P = new URLSearchParams(location.search);
+const GAS_URL = CONFIG.GAS_URL || P.get('gas') || '';
+const KEY = P.get('key') || '';
+const DEBUG = P.has('debug');
+const $ = id => document.getElementById(id);
+
+let shelf = P.get('shelf') || '';
+if (shelf) { $('shelfIn').value = shelf; $('shelfBox').style.display = 'none'; }
+try { if (!shelf) $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {}
+
+const S = { beta: null, gamma: null, tiltOk: false, sharp: 0, move: 99, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
+
+function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
+
+// ---------------- 開始（iPhone は、角度のセンサーの許可をボタンを押したときに求める決まり） ----------------
+$('btnStart').onclick = async () => {
+  shelf = $('shelfIn').value.trim();
+  try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
+  $('startErr').textContent = '';
+  if (!GAS_URL) { $('startErr').textContent = '送り先（GAS の URL）が設定されていません'; return; }
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') S.orientWarn = true;
+    }
+  } catch (e) { S.orientWarn = true; }
+  window.addEventListener('deviceorientation', onOrient);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } } });
+    const v = $('video'); v.srcObject = stream; await v.play();
+    const tr = stream.getVideoTracks()[0];
+    try { const c = tr.getCapabilities ? tr.getCapabilities() : {}; if (c.focusMode && c.focusMode.includes('continuous')) await tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+  } catch (e) {
+    $('startErr').textContent = 'カメラを使えませんでした（' + e.name + '）。下の［標準のカメラで撮る］を使ってください';
+    const b = document.createElement('button'); b.textContent = '標準のカメラで撮る'; b.onclick = () => $('fileIn').click(); $('start').appendChild(b);
+    return;
+  }
+  $('start').style.display = 'none'; $('cam').style.display = 'block';
+  $('shelfName').textContent = shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）';
+  if (DEBUG) $('debug').style.display = 'block';
+  layout(); setTimeout(() => { if (S.beta === null) S.orientWarn = true; }, 1500);
+  requestAnimationFrame(loop);
+};
+
+// ---------------- 角度（前後の傾き） ----------------
+//   スマホを縦に持ってまっすぐ前を向けると beta ≒ 90。小さい＝上から見下ろす、大きい＝下から見上げる
+function onOrient(e) {
+  if (e.beta === null || e.beta === undefined) return;
+  S.beta = e.beta; S.gamma = e.gamma;
+}
+function tiltState() {
+  if (S.beta === null) return { ok: true, msg: '', err: null };   // センサーがない：止めない（下に知らせる）
+  const err = S.beta - 90;
+  if (err < -CONFIG.TILT_MAX) return { ok: false, err, msg: '上から見下ろしています。スマホを立ててください' };
+  if (err > CONFIG.TILT_MAX) return { ok: false, err, msg: '下から見上げています。スマホを少し前に倒してください' };
+  return { ok: true, err, msg: '' };
+}
+
+// ---------------- 枠の位置（画面）と、写真の上の位置 ----------------
+let FR = null;   // 画面の上の枠 {x,y,w,h}
+function layout() {
+  const W = innerWidth, H = innerHeight;
+  const top = 64, bot = 150;   // 上の案内・下のボタンの帯
+  const h = (H - top - bot) * CONFIG.FRAME_H, w = W * CONFIG.FRAME_W;
+  FR = { x: (W - w) / 2, y: top + (H - top - bot - h) / 2, w, h };
+  Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
+  const lz = $('levelZone'), L = 140, span = 30;   // 水平器：±30度を表示、緑の帯が許す範囲
+  lz.style.top = (L / 2 - L / 2 * CONFIG.TILT_MAX / span) + 'px'; lz.style.height = (L * CONFIG.TILT_MAX / span) + 'px';
+}
+addEventListener('resize', () => setTimeout(layout, 200));
+// 画面の座標 → カメラの映像の座標（object-fit: cover で切れている分を考える）
+function screenToVideo(r) {
+  const v = $('video'), vw = v.videoWidth, vh = v.videoHeight, W = innerWidth, H = innerHeight;
+  const s = Math.max(W / vw, H / vh), ox = (W - vw * s) / 2, oy = (H - vh * s) / 2;
+  return { x: Math.round((r.x - ox) / s), y: Math.round((r.y - oy) / s), w: Math.round(r.w / s), h: Math.round(r.h / s) };
+}
+
+// ---------------- 撮る前の確認（くっきり具合・揺れ・明るさ） ----------------
+const work = $('work'), wctx = work.getContext('2d', { willReadFrequently: true });
+function measure(src, r, outW) {
+  // 枠の中を縮めて灰色にし、エッジの強さ（ラプラシアンの絶対値の平均）・明るさの平均を出す
+  const sc = outW / r.w, w = Math.max(8, Math.round(r.w * sc)), h = Math.max(8, Math.round(r.h * sc));
+  work.width = w; work.height = h;
+  wctx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, w, h);
+  const d = wctx.getImageData(0, 0, w, h).data, g = new Float32Array(w * h);
+  let sum = 0;
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) { g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; sum += g[j]; }
+  let lap = 0, n = 0;
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const k = y * w + x; lap += Math.abs(4 * g[k] - g[k - 1] - g[k + 1] - g[k - w] - g[k + w]); n++;
+  }
+  return { sharp: lap / Math.max(n, 1), light: sum / (w * h), gray: g };
+}
+let lastM = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  const v = $('video'); if (!v.videoWidth || $('review').style.display === 'flex') return;
+  if (t - lastM > 150) {
+    lastM = t;
+    const r = screenToVideo(FR), m = measure(v, r, 120);
+    S.sharp = S.sharp * 0.5 + m.sharp * 0.5; S.light = m.light;
+    if (S.prev && S.prev.length === m.gray.length) { let df = 0; for (let i = 0; i < m.gray.length; i++) df += Math.abs(m.gray[i] - S.prev[i]); S.move = S.move * 0.4 + (df / m.gray.length) * 0.6; }
+    S.prev = m.gray;
+  }
+  const tl = tiltState();
+  const okSharp = S.sharp >= CONFIG.SHARP_MIN, okStill = S.move <= CONFIG.MOVE_MAX, okLight = S.light >= CONFIG.LIGHT_MIN;
+  const all = tl.ok && okSharp && okStill && okLight;
+  $('ckTilt').className = tl.ok ? 'ok' : ''; $('ckSharp').className = okSharp ? 'ok' : ''; $('ckStill').className = okStill ? 'ok' : ''; $('ckLight').className = okLight ? 'ok' : '';
+  $('frame').classList.toggle('ok', all); $('shutter').disabled = !all;
+  $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
+    : all ? '背表紙が枠の中に上から下まで入っていれば、撮ってください' : '';
+  if (S.orientWarn && S.beta === null) $('ckTilt').textContent = '角度（確認できません）';
+  // 水平器
+  const dot = $('levelDot');
+  if (tl.err !== null && tl.err !== undefined) { const L = 140, span = 30, e = Math.max(-span, Math.min(span, tl.err)); dot.style.top = (L / 2 + L / 2 * e / span) + 'px'; dot.classList.toggle('ok', tl.ok); dot.style.display = 'block'; }
+  else dot.style.display = 'none';
+  if (DEBUG) $('debug').textContent = `beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
+}
+// 画面をタップしたらピントを合わせ直す（できる機種だけ）
+$('video').addEventListener('click', async () => {
+  try { const tr = $('video').srcObject.getVideoTracks()[0]; const c = tr.getCapabilities ? tr.getCapabilities() : {};
+    if (c.focusMode && c.focusMode.includes('single-shot')) { await tr.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }); setTimeout(() => tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {}), 1200); } } catch (e) {}
+});
+
+// ---------------- 撮る → 撮った後の確認 ----------------
+$('shutter').onclick = () => {
+  const v = $('video'), c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+  const r = screenToVideo(FR), m = measure(c, r, 120);
+  const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);
+  const tl = tiltState();
+  S.shot = { canvas: c, frame: r, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page' };
+  c.toBlob(b => { S.shot.blob = b; $('reviewImg').src = URL.createObjectURL(b); }, 'image/jpeg', CONFIG.JPEG_Q);
+  $('reviewMsg').textContent = blurred ? 'ぼやけています。撮り直してください' : '背表紙が枠に上から下まで入っていますか？';
+  $('reviewMsg').className = blurred ? 'ng' : '';
+  $('btnSend').textContent = blurred ? 'このまま送る' : '送る';
+  $('btnSend').className = blurred ? 'sub' : ''; $('btnRetake').className = blurred ? '' : 'sub';
+  $('review').style.display = 'flex';
+};
+$('btnRetake').onclick = () => { $('review').style.display = 'none'; S.shot = null; };
+$('btnSend').onclick = () => {
+  const s = S.shot; if (!s || !s.blob) return;
+  $('review').style.display = 'none'; S.shot = null;
+  enqueue(s);
+};
+
+// 標準のカメラで撮る（枠・角度の確認なし。システムは写真の中央の本を対象にする）
+$('fallback').onclick = () => $('fileIn').click();
+$('fileIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name });
+};
+
+// ---------------- 送る（失敗したら、つながるまで何度でも送り直す） ----------------
+const pad = n => String(n).padStart(2, '0');
+function fileName(s) {
+  const d = s.at, r = Math.random().toString(36).slice(2, 6);
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${r}.jpg`;
+}
+function enqueue(s) { s.name = fileName(s); S.queue.push(s); updSent(); pump(); }
+function updSent() { $('sent').textContent = `送った写真：${S.sent}枚` + (S.queue.length ? `\n送信待ち：${S.queue.length}枚` : ''); $('sent').style.whiteSpace = 'pre-line'; }
+const b64 = blob => new Promise((ok, ng) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ng; r.readAsDataURL(blob); });
+async function pump() {
+  if (S.busy || !S.queue.length) return;
+  S.busy = true;
+  const s = S.queue[0];
+  try {
+    const meta = { name: s.name, shelf, key: KEY, source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+      beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '' };
+    const body = JSON.stringify({ meta, image: await b64(s.blob) });
+    // text/plain にすると、ブラウザの事前確認（CORS の preflight）なしで GAS に送れる
+    const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error || '保存できませんでした');
+    S.queue.shift(); S.sent++; toast('送りました');
+  } catch (e) {
+    toast('送れませんでした。つながったら自動で送り直します（' + e.message + '）', 3500);
+    S.busy = false; updSent(); setTimeout(pump, 5000); return;
+  }
+  S.busy = false; updSent(); pump();
+}
+addEventListener('online', pump);
+addEventListener('beforeunload', e => { if (S.queue.length) { e.preventDefault(); e.returnValue = ''; } });
+</script>
+</body>
+</html>
