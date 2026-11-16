@@ -12,6 +12,7 @@
   ・ぼやけ：枠の中のくっきり具合・揺れ（ジャイロ）・暗さを撮る前に確かめる。撮った後にもう一度確かめる
   ・案内・ボタンは左右の暗い所（撮らない部分）に置く
   ・スマホのカメラの機能（できる機種だけ）：オートフォーカス・自動露出・自動ホワイトバランス・タップでピント固定・ズーム（1×・1.5×・2×）
+  ・送る前の写真はブラウザの保存領域（IndexedDB）に置く。ページを閉じても消えず、次に開いたら続きを送る
   ・送り先：GAS の Web アプリ（Google ドライブの「背表紙_取り込み」/棚の名前/ に、写真 .jpg と枠などの情報 .json を保存）
   URL：index.html?shelf=棚の名前&key=合言葉（shelf がなければ画面で入れる。空なら「振り分け待ち」）
 -->
@@ -95,6 +96,7 @@
   </div>
   <button id="btnStart">カメラを開始</button>
   <p id="startErr" style="color:#ff9ea1"></p>
+  <p id="startLeft" style="display:none;color:#000;background:#ffd60a;padding:10px 14px;border-radius:10px;font-weight:700"></p>
 </div>
 
 <div id="cam">
@@ -401,7 +403,58 @@ function fileName(s) {
   const d = s.at, r = Math.random().toString(36).slice(2, 6);
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${r}.jpg`;
 }
-function enqueue(s) { s.name = fileName(s); S.queue.push(s); updSent(); pump(); }
+async function enqueue(s) {
+  s.name = fileName(s);
+  s.gas = GAS_URL; s.key = KEY;
+  s.meta = { name: s.name, shelf, source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+    beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '' };
+  S.queue.push(s); updSent();
+  try { await dbPut(s); s.saved = true; }
+  catch (e) { toast('スマホに保存できませんでした。送り終わるまでページを閉じないでください（' + e.message + '）', 4000); }
+  pump();
+}
+
+// ---------------- 送る前の写真を、ブラウザの保存領域（IndexedDB）に置く ----------------
+//   ページを閉じても消えない。次にページを開いたら、続きを自動で送る。送り終わったら消す
+const DB_NAME = 'tateoki_shelf_camera', DB_STORE = 'unsent';
+let dbP = null;
+function db() {
+  if (dbP) return dbP;
+  dbP = new Promise((ok, ng) => {
+    if (!window.indexedDB) { ng(new Error('保存領域を使えません')); return; }
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(DB_STORE, { keyPath: 'name' });
+    r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error || new Error('保存領域を開けません'));
+  });
+  dbP.catch(() => { dbP = null; });
+  return dbP;
+}
+async function dbTx(mode, fn) {
+  const d = await db();
+  return new Promise((ok, ng) => {
+    const tx = d.transaction(DB_STORE, mode), st = tx.objectStore(DB_STORE); let out;
+    const r = fn(st); if (r) r.onsuccess = () => { out = r.result; };
+    tx.oncomplete = () => ok(out); tx.onerror = tx.onabort = () => ng(tx.error || new Error('保存できませんでした'));
+  });
+}
+async function dbPut(s) {
+  const buf = await s.blob.arrayBuffer();   // Blob のままだと保存できない古い iPhone があるため、中身の形で置く
+  return dbTx('readwrite', st => st.put({ name: s.name, gas: s.gas, key: s.key, meta: s.meta, type: s.blob.type || 'image/jpeg', data: buf, at: Date.now() }));
+}
+const dbDel = name => dbTx('readwrite', st => st.delete(name)).catch(() => {});
+const dbAll = () => dbTx('readonly', st => st.getAll());
+const dbClear = () => dbTx('readwrite', st => st.clear()).catch(() => {});
+// ページを開いたとき：前回送れなかった写真があれば、カメラを開始しなくてもすぐ送り始める
+async function resumeUnsent() {
+  let rows = [];
+  try { rows = await dbAll(); } catch (e) { return; }
+  rows = rows.filter(r => !S.queue.some(q => q.name === r.name)).sort((a, b) => a.at - b.at);
+  if (!rows.length) return;
+  rows.forEach(r => S.queue.push({ name: r.name, gas: r.gas, key: r.key, meta: r.meta, blob: new Blob([r.data], { type: r.type }), saved: true, resumed: true }));
+  const el = $('startLeft');
+  el.textContent = `前回送れなかった写真が ${rows.length} 枚あります。今から送ります`; el.style.display = 'block';
+  updSent(); pump();
+}
 function updSent() {
   $('sentN').textContent = `送った写真：${S.sent}枚`;
   const n = S.queue.length, el = $('sending');
@@ -410,6 +463,9 @@ function updSent() {
   const on = !!n && $('cam').style.display === 'block';
   $('sendBanner').style.display = on ? 'block' : 'none'; document.body.classList.toggle('sending', on);
   if (S.ending === 'wait') endWaitUi();
+  const left = $('startLeft');
+  if (left.style.display === 'block' && $('start').style.display !== 'none')
+    left.textContent = n ? `前回送れなかった写真を送っています（あと ${n} 枚）` : '前回送れなかった写真を、すべて送りました';
 }
 
 // ---------------- 撮影を終わる ----------------
@@ -420,7 +476,7 @@ $('btnEnd').onclick = () => {
   endShow(`まだ送っていない写真が ${n} 枚あります`, '送らずに終わると、その写真は送られません',
     [['送り終わるまで待つ', '', () => { S.ending = 'wait'; endWaitUi(); }], ['送らずに終わる', 'sub', () => {
       if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
-      S.queue.length = 0; endDone(true);
+      S.queue.length = 0; dbClear(); endDone(true);
     }], ['撮影に戻る', 'sub', endHide]]);
 };
 function endShow(msg, sub, btns) {
@@ -436,7 +492,7 @@ function endWaitUi() {
   endShow(`送信中です（あと ${n} 枚）`, '送り終わるまで、このページを閉じないでください。ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）',
     [['送らずに終わる', 'sub', () => {
       if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
-      S.queue.length = 0; endDone(true);
+      S.queue.length = 0; dbClear(); endDone(true);
     }], ['撮影に戻る', 'sub', endHide]]);
 }
 function endDone(dropped) {
@@ -453,14 +509,15 @@ async function pump() {
   S.busy = true;
   const s = S.queue[0];
   try {
-    const meta = { name: s.name, shelf, key: KEY, source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
-      beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '' };
+    const meta = Object.assign({}, s.meta, { key: s.key || KEY });
     const body = JSON.stringify({ meta, image: await b64(s.blob) });
     // text/plain にすると、ブラウザの事前確認（CORS の preflight）なしで GAS に送れる
-    const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
+    const res = await fetch(s.gas || GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     const j = await res.json();
     if (!j.ok) throw new Error(j.error || '保存できませんでした');
-    S.queue.shift(); S.sent++; toast('送りました');
+    if (S.queue[0] === s) S.queue.shift();
+    await dbDel(s.name);   // 送り終わったら保存領域から消す
+    S.sent++; toast('送りました');
   } catch (e) {
     toast('送れませんでした。つながったら自動で送り直します（' + e.message + '）', 3500);
     S.busy = false; updSent(); setTimeout(pump, 5000); return;
@@ -468,6 +525,8 @@ async function pump() {
   S.busy = false; updSent(); pump();
 }
 addEventListener('online', pump);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pump(); });   // ほかのアプリから戻ったら、続きを送る
+resumeUnsent();
 addEventListener('beforeunload', e => { if (S.queue.length) { e.preventDefault(); e.returnValue = ''; } });
 </script>
 </body>
