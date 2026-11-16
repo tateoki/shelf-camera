@@ -57,7 +57,10 @@
   #zoomNow { font-size: 11px; color: var(--sub); }
   @keyframes blink { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); box-shadow: 0 0 0 3px #fff; } }
   #checks span.blink { animation: blink .35s 3; }
-  #sent { margin-top: auto; font-size: 12px; color: var(--sub); }
+  #sent { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+  #sentN { font-size: 17px; font-weight: 700; }
+  #sending { display: none; font-size: 22px; font-weight: 800; color: #000; background: #ffd60a; padding: 8px 12px; border-radius: 10px; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
   #fallback { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
   #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
   #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; }
@@ -88,7 +91,7 @@
   <div id="sideL">
     <div id="shelfName"></div><div id="guide">準備中…</div>
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
-    <div id="sent">送った写真：0枚</div>
+    <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
   <div id="sideR">
@@ -384,7 +387,11 @@ function fileName(s) {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${r}.jpg`;
 }
 function enqueue(s) { s.name = fileName(s); S.queue.push(s); updSent(); pump(); }
-function updSent() { $('sent').textContent = `送った写真：${S.sent}枚` + (S.queue.length ? `\n送信待ち：${S.queue.length}枚` : ''); $('sent').style.whiteSpace = 'pre-line'; }
+function updSent() {
+  $('sentN').textContent = `送った写真：${S.sent}枚`;
+  const n = S.queue.length, el = $('sending');
+  el.textContent = `送信中：${n}枚`; el.style.display = n ? 'block' : 'none';
+}
 const b64 = blob => new Promise((ok, ng) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ng; r.readAsDataURL(blob); });
 async function pump() {
   if (S.busy || !S.queue.length) return;
