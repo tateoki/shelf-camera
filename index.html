@@ -43,7 +43,8 @@
   #sideL { left: 0; gap: 12px; font-size: 13px; }
   #sideR { right: 0; align-items: center; justify-content: center; }
   #shutterWrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-  #shelfName { color: var(--sub); font-size: 12px; word-break: break-all; }
+  #shelfRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+  #shelfName { color: #fff; font-size: 17px; font-weight: 700; word-break: break-all; }
   #guide { font-weight: 700; font-size: 15px; line-height: 1.5; }
   #level { position: absolute; right: 6px; top: 50%; width: 10px; height: 140px; margin-top: -70px; border-radius: 5px; background: rgba(255, 255, 255, .25); }
   #levelZone { position: absolute; left: 0; right: 0; background: rgba(47, 191, 113, .5); }
@@ -78,7 +79,8 @@
   .kidList { display: flex; flex-direction: column; gap: 8px; }
   .kidList button { background: rgba(255, 255, 255, .15); color: #fff; border-radius: 10px; text-align: left; padding: 12px 14px; }
   .kidList button.on { background: #fff; color: #000; font-weight: 700; }
-  #btnKid { display: none; font-size: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; align-self: flex-start; }
+  /* 操作のボタン（棚を変える・撮影を終わる）：状態の表示（緑・赤）と見分けられるよう、白地に黒の文字 */
+  #btnKid { display: none; font-size: 15px; font-weight: 700; padding: 7px 14px; border-radius: 999px; background: #fff; color: #000; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #kidPop { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #kidPop > div { background: #1c1c1e; border-radius: 14px; padding: 18px; width: 100%; max-width: 340px; max-height: 80vh; overflow: auto; }
   /* 送信中の帯（画面の上） */
@@ -86,7 +88,7 @@
   body.sending #sideL, body.sending #btnEnd { margin-top: 84px; }   /* 帯の下にずらす */
   #sendBanner b { font-size: 16px; }
   /* 撮影を終わる */
-  #btnEnd { position: absolute; top: calc(env(safe-area-inset-top) + 12px); font-size: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
+  #btnEnd { position: absolute; top: calc(env(safe-area-inset-top) + 12px); font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: #fff; color: #000; line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #endBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
   #endIn { background: #1c1c1e; border-radius: 14px; padding: 22px 18px; max-width: 340px; width: 100%; text-align: center; }
   #endMsg { font-size: 17px; font-weight: 700; line-height: 1.6; margin-bottom: 6px; }
@@ -120,7 +122,7 @@
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="sideL">
-    <div id="shelfName"></div><button id="btnKid">棚を変える</button><div id="guide">準備中…</div>
+    <div id="shelfRow"><div id="shelfName"></div><button id="btnKid">棚を変える</button></div><div id="guide">準備中…</div>
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
@@ -256,7 +258,7 @@ $('btnStart').onclick = async () => {
   }
   $('start').style.display = 'none'; $('cam').style.display = 'block';
   shelfLabel();
-  if (!ADMIN && KID.list.length > 1) $('btnKid').style.display = 'block';
+  if (!ADMIN && KID.list.length > 1) $('btnKid').style.display = 'inline-block';
   if (DEBUG) $('debug').style.display = 'block';
   layout(); setTimeout(() => { if (S.beta === null) S.orientWarn = true; }, 1500);
   requestAnimationFrame(loop);
