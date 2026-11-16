@@ -70,6 +70,18 @@
   #reviewBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
   #toast { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
   canvas { display: none; }
+  /* 送信中の帯（画面の上） */
+  #sendBanner { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 6px); z-index: 5; display: none; background: #ffd60a; color: #000; border-radius: 10px; padding: 6px 10px; text-align: center; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 8px rgba(0, 0, 0, .4); pointer-events: none; }
+  body.sending #sideL, body.sending #btnEnd { margin-top: 84px; }   /* 帯の下にずらす */
+  #sendBanner b { font-size: 16px; }
+  /* 撮影を終わる */
+  #btnEnd { position: absolute; top: calc(env(safe-area-inset-top) + 12px); font-size: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
+  #endBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
+  #endIn { background: #1c1c1e; border-radius: 14px; padding: 22px 18px; max-width: 340px; width: 100%; text-align: center; }
+  #endMsg { font-size: 17px; font-weight: 700; line-height: 1.6; margin-bottom: 6px; }
+  #endSub { font-size: 13px; color: var(--sub); line-height: 1.6; margin-bottom: 16px; }
+  #endBtns { display: flex; flex-direction: column; gap: 10px; }
+  #endBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
   #debug { font-size: 10px; color: #999; display: none; word-break: break-all; }
 </style>
 </head>
@@ -95,6 +107,7 @@
     <div id="debug"></div>
   </div>
   <div id="sideR">
+    <button id="btnEnd">撮影を<br>終わる</button>
     <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
     <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
@@ -111,6 +124,8 @@
 <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
 <canvas id="work"></canvas>
 <div id="toast"></div>
+<div id="sendBanner"><b id="sbTitle">送信中</b><br>送り終わるまで、このページを閉じないでください<br>ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）</div>
+<div id="endBox"><div id="endIn"><div id="endMsg"></div><div id="endSub"></div><div id="endBtns"></div></div></div>
 
 <script>
 'use strict';
@@ -139,7 +154,7 @@ let shelf = P.get('shelf') || '';
 if (shelf) { $('shelfIn').value = shelf; $('shelfBox').style.display = 'none'; }
 try { if (!shelf) $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {}
 
-const S = { beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
+const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
 
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
 
@@ -391,6 +406,46 @@ function updSent() {
   $('sentN').textContent = `送った写真：${S.sent}枚`;
   const n = S.queue.length, el = $('sending');
   el.textContent = `送信中：${n}枚`; el.style.display = n ? 'block' : 'none';
+  $('sbTitle').textContent = `送信中（あと ${n} 枚）`;
+  const on = !!n && $('cam').style.display === 'block';
+  $('sendBanner').style.display = on ? 'block' : 'none'; document.body.classList.toggle('sending', on);
+  if (S.ending === 'wait') endWaitUi();
+}
+
+// ---------------- 撮影を終わる ----------------
+//   送信中なら［送り終わるまで待つ］［送らずに終わる］を選ぶ。待つ場合は、送り終わったら「閉じて大丈夫です」と出す
+$('btnEnd').onclick = () => {
+  const n = S.queue.length;
+  if (!n) { endDone(); return; }
+  endShow(`まだ送っていない写真が ${n} 枚あります`, '送らずに終わると、その写真は送られません',
+    [['送り終わるまで待つ', '', () => { S.ending = 'wait'; endWaitUi(); }], ['送らずに終わる', 'sub', () => {
+      if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
+      S.queue.length = 0; endDone(true);
+    }], ['撮影に戻る', 'sub', endHide]]);
+};
+function endShow(msg, sub, btns) {
+  $('endMsg').textContent = msg; $('endSub').textContent = sub;
+  const box = $('endBtns'); box.innerHTML = '';
+  btns.forEach(([label, cls, fn]) => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; box.appendChild(b); });
+  $('endBox').style.display = 'flex';
+}
+function endHide() { S.ending = null; $('endBox').style.display = 'none'; }
+function endWaitUi() {
+  const n = S.queue.length;
+  if (!n) { endDone(); return; }
+  endShow(`送信中です（あと ${n} 枚）`, '送り終わるまで、このページを閉じないでください。ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）',
+    [['送らずに終わる', 'sub', () => {
+      if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
+      S.queue.length = 0; endDone(true);
+    }], ['撮影に戻る', 'sub', endHide]]);
+}
+function endDone(dropped) {
+  S.ending = 'done';
+  try { const st = $('video').srcObject; if (st) st.getTracks().forEach(t => t.stop()); } catch (e) {}
+  $('cam').style.display = 'none'; $('sendBanner').style.display = 'none'; document.body.classList.remove('sending');
+  endShow(dropped ? '撮影を終わりました' : '送り終わりました', `送った写真：${S.sent} 枚\nこのページを閉じて大丈夫です`,
+    [['続けて撮影する', '', () => location.reload()]]);
+  $('endSub').style.whiteSpace = 'pre-line';
 }
 const b64 = blob => new Promise((ok, ng) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ng; r.readAsDataURL(blob); });
 async function pump() {
