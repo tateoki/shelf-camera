@@ -14,7 +14,7 @@
   ・スマホのカメラの機能（できる機種だけ）：オートフォーカス・自動露出・自動ホワイトバランス・タップでピント固定・ズーム（1×・1.5×・2×）
   ・送る前の写真はブラウザの保存領域（IndexedDB）に置く。ページを閉じても消えず、次に開いたら続きを送る
   ・送り先：GAS の Web アプリ（Google ドライブの「背表紙_取り込み」/棚の名前/ に、写真 .jpg と枠などの情報 .json を保存）
-  URL：index.html?shelf=棚の名前&key=合言葉（shelf がなければ画面で入れる。空なら「振り分け待ち」）
+  URL：施設は index.html?c=撮影コード（配下の棚を選んで撮る）。管理者は index.html（合言葉は最初に一度入れるとスマホが覚える。?key= を付けて開いても覚えて URL から消す）・?shelf=フォルダ名（入れ子は /）
 -->
 <style>
   :root { --ok: #2fbf71; --ng: #e5484d; --bg: #000; --fg: #fff; --sub: #bbb; }
@@ -75,6 +75,12 @@
   #reviewBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
   #toast { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
   canvas { display: none; }
+  .kidList { display: flex; flex-direction: column; gap: 8px; }
+  .kidList button { background: rgba(255, 255, 255, .15); color: #fff; border-radius: 10px; text-align: left; padding: 12px 14px; }
+  .kidList button.on { background: #fff; color: #000; font-weight: 700; }
+  #btnKid { display: none; font-size: 12px; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; align-self: flex-start; }
+  #kidPop { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .88); align-items: center; justify-content: center; padding: 24px; }
+  #kidPop > div { background: #1c1c1e; border-radius: 14px; padding: 18px; width: 100%; max-width: 340px; max-height: 80vh; overflow: auto; }
   /* 送信中の帯（画面の上） */
   #sendBanner { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 6px); z-index: 5; display: none; background: #ffd60a; color: #000; border-radius: 10px; padding: 6px 10px; text-align: center; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 8px rgba(0, 0, 0, .4); pointer-events: none; }
   body.sending #sideL, body.sending #btnEnd { margin-top: 84px; }   /* 帯の下にずらす */
@@ -93,10 +99,17 @@
 <body>
 <div id="start">
   <h1>背表紙を撮る</h1>
-  <p>画面の中央の枠に、撮りたい本の背表紙が<br><b>上から下まで全部</b>収まるように撮ってください。<br>枠が<b style="color:var(--ok)">緑</b>になったら撮れます。</p>
-  <div id="shelfBox" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px">
-    <label for="shelfIn" style="font-size:13px;color:var(--sub)">棚の名前（わからなければ空のままで大丈夫です）</label>
-    <input id="shelfIn" placeholder="例：kernel本郷 2階 ビジネス">
+  <p>本の<b>上辺・下辺</b>を、<b style="color:#ffd60a">黄色の点線</b>に合わせて撮ってください。<br>枠が<b style="color:var(--ok)">緑</b>になったら撮れます。</p>
+  <div id="kidBox" style="display:none;width:100%;max-width:340px">
+    <div id="kidTitle" style="font-size:18px;font-weight:700;margin-bottom:8px"></div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">写真を入れる棚を選んでください</div>
+    <div id="kidList" class="kidList"></div>
+  </div>
+  <div id="shelfBox" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px">
+    <label for="keyIn" id="keyLbl" style="font-size:13px;color:var(--sub)">管理者の合言葉（このスマホが覚えます）</label>
+    <input id="keyIn" type="password" autocomplete="off" placeholder="合言葉">
+    <label for="shelfIn" style="font-size:13px;color:var(--sub)">棚（フォルダ）の名前（入れ子は / で区切る。空なら振り分け待ち）</label>
+    <input id="shelfIn" placeholder="例：kernel-hongo__kernel本郷">
   </div>
   <button id="btnStart">カメラを開始</button>
   <p id="startErr" style="color:#ff9ea1"></p>
@@ -107,7 +120,7 @@
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="sideL">
-    <div id="shelfName"></div><div id="guide">準備中…</div>
+    <div id="shelfName"></div><button id="btnKid">棚を変える</button><div id="guide">準備中…</div>
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
@@ -130,6 +143,7 @@
 <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
 <canvas id="work"></canvas>
 <div id="toast"></div>
+<div id="kidPop"><div><div style="font-weight:700;margin-bottom:10px">写真を入れる棚</div><div id="kidList2" class="kidList"></div></div></div>
 <div id="sendBanner"><b id="sbTitle">送信中</b><br>送り終わるまで、このページを閉じないでください<br>ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）</div>
 <div id="endBox"><div id="endIn"><div id="endMsg"></div><div id="endSub"></div><div id="endBtns"></div></div></div>
 
@@ -152,13 +166,48 @@ const CONFIG = {
 };
 const P = new URLSearchParams(location.search);
 const GAS_URL = CONFIG.GAS_URL || P.get('gas') || '';
-const KEY = P.get('key') || '';
+// 撮影コード（施設の QR）と管理者の合言葉。合言葉は URL に付いていたら覚えて、URL からは消す（人に見られないように）
+const CODE = (P.get('c') || '').trim();
+let KEY = '';
+try { KEY = P.get('key') || localStorage.getItem('sc_key') || ''; if (P.get('key')) localStorage.setItem('sc_key', P.get('key')); } catch (e) { KEY = P.get('key') || ''; }
+if (P.has('key')) { P.delete('key'); try { history.replaceState(null, '', location.pathname + (P.toString() ? '?' + P.toString() : '')); } catch (e) {} }
+const ADMIN = !CODE;
 const DEBUG = P.has('debug');
 const $ = id => document.getElementById(id);
 
 let shelf = P.get('shelf') || '';
-if (shelf) { $('shelfIn').value = shelf; $('shelfBox').style.display = 'none'; }
-try { if (!shelf) $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {}
+const KID = { root: '', list: [], sel: null, left: null };   // 施設：いちばん上の棚の名前・配下の棚・選んだ棚
+if (ADMIN) {
+  $('shelfBox').style.display = 'flex';
+  if (KEY) { $('keyIn').style.display = 'none'; $('keyLbl').style.display = 'none'; }
+  if (shelf) $('shelfIn').value = shelf;
+  else { try { $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {} }
+} else loadKids();
+function kidHtml() { return KID.list.map(k => `<button data-kid="${k.id}" class="${KID.sel && KID.sel.id === k.id ? 'on' : ''}">${k.label.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))}</button>`).join(''); }
+function kidPick(id) {
+  KID.sel = KID.list.find(k => k.id === id) || null;
+  try { localStorage.setItem('sc_kid_' + CODE, id); } catch (e) {}
+  $('kidList').innerHTML = kidHtml(); $('kidList2').innerHTML = kidHtml();
+  $('kidPop').style.display = 'none'; shelfLabel();
+}
+async function loadKids() {
+  $('kidBox').style.display = 'block'; $('kidTitle').textContent = '棚を読み込んでいます…'; $('btnStart').disabled = true;
+  try {
+    const j = await (await fetch(GAS_URL + '?c=' + encodeURIComponent(CODE))).json();
+    if (!j.ok) throw new Error(j.error || '読み込めませんでした');
+    KID.root = j.name; KID.list = j.kids || []; KID.left = j.left;
+    $('kidTitle').textContent = j.name;
+    if (!KID.list.length) { $('kidList').innerHTML = '<div style="color:#ff9ea1">写真を入れられる棚がまだありません</div>'; return; }
+    let last = ''; try { last = localStorage.getItem('sc_kid_' + CODE) || ''; } catch (e) {}
+    KID.sel = KID.list.find(k => k.id === last) || (KID.list.length === 1 ? KID.list[0] : null);
+    $('kidList').innerHTML = kidHtml(); $('kidList2').innerHTML = kidHtml();
+    $('btnStart').disabled = false;
+  } catch (e) { $('kidTitle').textContent = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; }
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
+function shelfLabel() {
+  $('shelfName').textContent = ADMIN ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + KID.root + (KID.sel ? ' ＞ ' + KID.sel.label : '');
+}
 
 const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
 
@@ -166,10 +215,13 @@ function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.st
 
 // ---------------- 開始（iPhone は、角度のセンサーの許可をボタンを押したときに求める決まり） ----------------
 $('btnStart').onclick = async () => {
-  shelf = $('shelfIn').value.trim();
-  try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
   $('startErr').textContent = '';
   if (!GAS_URL) { $('startErr').textContent = '送り先（GAS の URL）が設定されていません'; return; }
+  if (ADMIN) {
+    if (!KEY) { KEY = $('keyIn').value.trim(); if (!KEY) { $('startErr').textContent = '合言葉を入れてください（施設の方は、棚の QR コードから開いてください）'; return; } try { localStorage.setItem('sc_key', KEY); } catch (e) {} }
+    shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
+    try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
+  } else if (!KID.sel) { $('startErr').textContent = '写真を入れる棚を選んでください'; return; }
   try {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       const r = await DeviceOrientationEvent.requestPermission();
@@ -191,11 +243,15 @@ $('btnStart').onclick = async () => {
     return;
   }
   $('start').style.display = 'none'; $('cam').style.display = 'block';
-  $('shelfName').textContent = shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）';
+  shelfLabel();
+  if (!ADMIN && KID.list.length > 1) $('btnKid').style.display = 'block';
   if (DEBUG) $('debug').style.display = 'block';
   layout(); setTimeout(() => { if (S.beta === null) S.orientWarn = true; }, 1500);
   requestAnimationFrame(loop);
 };
+
+$('btnKid').onclick = () => { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; };
+$('kidPop').onclick = e => { if (e.target.id === 'kidPop') $('kidPop').style.display = 'none'; };
 
 // ---------------- スマホのカメラの機能（ブラウザから頼めるものだけ。機種が持っていない機能は出さない） ----------------
 //   ・オートフォーカス・自動露出・自動ホワイトバランス：「ずっと自動で合わせる」に設定（できる機種）
@@ -409,8 +465,8 @@ function fileName(s) {
 }
 async function enqueue(s) {
   s.name = fileName(s);
-  s.gas = GAS_URL; s.key = KEY;
-  s.meta = { name: s.name, shelf, source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+  s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
+  s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? KID.root + ' ＞ ' + KID.sel.label : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
     beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '' };
   S.queue.push(s); updSent();
   try { await dbPut(s); s.saved = true; }
@@ -513,16 +569,20 @@ async function pump() {
   S.busy = true;
   const s = S.queue[0];
   try {
-    const meta = Object.assign({}, s.meta, { key: s.key || KEY });
+    const meta = Object.assign({}, s.meta, { key: s.key || '' });
     const body = JSON.stringify({ meta, image: await b64(s.blob) });
     // text/plain にすると、ブラウザの事前確認（CORS の preflight）なしで GAS に送れる
     const res = await fetch(s.gas || GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     const j = await res.json();
-    if (!j.ok) throw new Error(j.error || '保存できませんでした');
+    if (!j.ok) { const er = new Error(j.error || '保存できませんでした'); er.stop = !!j.limit; throw er; }
     if (S.queue[0] === s) S.queue.shift();
     await dbDel(s.name);   // 送り終わったら保存領域から消す
     S.sent++;
   } catch (e) {
+    if (e.stop) {   // 1日の上限：送り直さずに止める（写真はスマホに残り、次に開いたときに送る）
+      toast(e.message + '。撮った写真はスマホに残し、明日以降にこのページを開いたときに送ります', 6000);
+      S.busy = false; updSent(); return;
+    }
     toast('送れませんでした。つながったら自動で送り直します（' + e.message + '）', 3500);
     S.busy = false; updSent(); setTimeout(pump, 5000); return;
   }
