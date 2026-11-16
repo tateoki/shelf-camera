@@ -61,7 +61,7 @@
   #shutter { width: 74px; height: 74px; padding: 0; border-radius: 50%; background: #fff; border: 5px solid rgba(255, 255, 255, .4); background-clip: padding-box; }
   #shutter.off { opacity: .35; }
   /* ズーム（できる機種だけ出す）：シャッターの下 */
-  #camTools { position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(2, 50px); gap: 6px; }   /* ズーム：2列（下の［標準のカメラで撮る］と重ならないように） */
+  #camTools { position: absolute; top: calc(100% + 16px); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }   /* ズーム：縦に並べる */
   #camTools button { font-size: 13px; padding: 8px 0; width: 50px; border-radius: 999px; background: rgba(255, 255, 255, .18); color: #fff; }
   #camTools button.on { background: #fff; color: #000; font-weight: 700; }
   #zoomNow { font-size: 11px; color: var(--sub); }
