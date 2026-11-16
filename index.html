@@ -342,16 +342,6 @@ async function afTap(x, y) {
   Object.assign(box.style, { left: x + 'px', top: y + 'px', display: 'block' });
 }
 
-// 音量ボタン・Bluetooth のシャッターリモコン：ブラウザにキーとして届く機種だけ、シャッターとして使う
-//   （iPhone の Safari・多くの Android の Chrome には届かない。届かない機種では何も起きない）
-const SHUTTER_KEYS = ['AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown', 'Enter', ' ', 'Camera'];
-addEventListener('keydown', e => {
-  if (!SHUTTER_KEYS.includes(e.key) || $('cam').style.display !== 'block') return;
-  e.preventDefault();
-  if ($('review').style.display === 'flex') return;
-  $('shutter').click();
-});
-
 // ---------------- 撮る → 撮った後の確認 ----------------
 $('shutter').onclick = () => {
   if (!S.all) {   // まだ撮れない：赤い項目を知らせる
