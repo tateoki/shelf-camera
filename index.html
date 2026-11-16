@@ -33,10 +33,11 @@
   video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
   #frame { position: absolute; border: 3px solid var(--ng); border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #frame.ok { border-color: var(--ok); }
-  /* 見本の影：背表紙の形（枠の高さの8割）。これに本を重ねて撮ってもらう */
-  #ghost { position: absolute; left: 50%; top: 10%; height: 80%; width: 44%; transform: translateX(-50%); background: rgba(255, 255, 255, .17);
-    border-radius: 3px; display: flex; align-items: center; justify-content: center; pointer-events: none;
-    writing-mode: vertical-rl; color: rgba(255, 255, 255, .9); font-size: 16px; font-weight: 700; letter-spacing: .25em; text-shadow: 0 0 4px rgba(0, 0, 0, .6); }
+  /* 上下の合わせ線：本の上の端と下の端をこの点線に合わせてもらう（左右は枠からはみ出してもよい。写真は画面全体を保存する） */
+  .hline { position: absolute; left: -14px; right: -14px; height: 0; border-top: 3px dashed #ffd60a; pointer-events: none; filter: drop-shadow(0 0 2px rgba(0, 0, 0, .7)); }
+  .hline span { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 700; color: #000; background: #ffd60a; padding: 1px 8px; border-radius: 4px; }
+  #hTop { top: 8%; } #hTop span { bottom: 4px; }
+  #hBot { top: 92%; } #hBot span { top: 4px; }
   /* 左右の暗い所（撮らない部分）：左＝棚・案内・確認・送った枚数、右＝シャッター・水平器・標準のカメラ */
   #sideL, #sideR { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 8px calc(env(safe-area-inset-bottom) + 12px); }
   #sideL { left: 0; gap: 12px; font-size: 13px; }
@@ -104,7 +105,7 @@
 
 <div id="cam">
   <video id="video" playsinline muted autoplay></video>
-  <div id="frame"><div id="ghost">本を重ねて撮影</div></div>
+  <div id="frame"><div class="hline" id="hTop"><span>本の上</span></div><div class="hline" id="hBot"><span>本の下</span></div></div>
   <div id="sideL">
     <div id="shelfName"></div><div id="guide">準備中…</div>
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
@@ -520,7 +521,7 @@ async function pump() {
     if (!j.ok) throw new Error(j.error || '保存できませんでした');
     if (S.queue[0] === s) S.queue.shift();
     await dbDel(s.name);   // 送り終わったら保存領域から消す
-    S.sent++; toast('送りました');
+    S.sent++;
   } catch (e) {
     toast('送れませんでした。つながったら自動で送り直します（' + e.message + '）', 3500);
     S.busy = false; updSent(); setTimeout(pump, 5000); return;
