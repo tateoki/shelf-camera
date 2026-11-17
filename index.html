@@ -587,8 +587,8 @@ function updSent() {
   const n = S.queue.length, el = $('sending');
   el.textContent = `送信中：${n}枚`; el.style.display = n ? 'block' : 'none';
   $('sbTitle').textContent = `送信中（あと ${n} 枚）`;
-  const on = !!n && $('cam').style.display === 'block';
-  $('sendBanner').style.display = on ? 'block' : 'none'; document.body.classList.toggle('sending', on);
+  // 上の送信中の帯は出さない（撮影の邪魔になるため。左下の黄色の「送信中：○枚」で分かる）
+  $('sendBanner').style.display = 'none'; document.body.classList.remove('sending');
   if (S.ending === 'wait') endWaitUi();
   const left = $('startLeft');
   if (left.style.display === 'block' && $('start').style.display !== 'none')
