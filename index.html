@@ -488,6 +488,12 @@ $('shutter').onclick = () => {
   const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);
   const tl = tiltState();
   S.shot = { canvas: c, frame: r, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page' };
+  if (ADMIN) {   // 管理者：撮った後の確認を出さずにすぐ送る（続けて撮れる）。撮れたことは画面が一瞬白く光って知らせる
+    const shot = S.shot; S.shot = null;
+    flash();
+    c.toBlob(b => { shot.blob = b; enqueue(shot); }, 'image/jpeg', CONFIG.JPEG_Q);
+    return;
+  }
   c.toBlob(b => { S.shot.blob = b; $('reviewImg').src = URL.createObjectURL(b); }, 'image/jpeg', CONFIG.JPEG_Q);
   $('reviewMsg').textContent = blurred ? 'ぼやけています。撮り直してください' : '背表紙が枠に上から下まで入っていますか？';
   $('reviewMsg').className = blurred ? 'ng' : '';
@@ -495,6 +501,12 @@ $('shutter').onclick = () => {
   $('btnSend').className = blurred ? 'sub' : ''; $('btnRetake').className = blurred ? '' : 'sub';
   $('review').style.display = 'flex';
 };
+function flash() {
+  let f = $('flash');
+  if (!f) { f = document.createElement('div'); f.id = 'flash'; f.style.cssText = 'position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:9;transition:opacity .25s'; document.body.appendChild(f); }
+  f.style.transition = 'none'; f.style.opacity = '.7'; void f.offsetWidth;
+  f.style.transition = 'opacity .25s'; f.style.opacity = '0';
+}
 $('btnRetake').onclick = () => { $('review').style.display = 'none'; S.shot = null; };
 $('btnSend').onclick = () => {
   const s = S.shot; if (!s || !s.blob) return;
