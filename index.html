@@ -110,6 +110,13 @@
     <div id="kidTitle" style="font-size:18px;font-weight:700;margin-bottom:8px"></div>
     <div style="font-size:13px;color:var(--sub);margin-bottom:8px">写真を入れる棚を選んでください</div>
     <div id="kidList" class="kidList"></div>
+    <div id="userBox" style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
+      <label for="userName" style="font-size:13px;color:var(--sub)">お名前（ニックネームでも可・必須）</label>
+      <input id="userName" autocomplete="name" placeholder="例：山田">
+      <label for="userOrg" style="font-size:13px;color:var(--sub)">会社名・部屋番号など（任意）</label>
+      <input id="userOrg" autocomplete="organization" placeholder="例：〇〇株式会社">
+      <div style="font-size:12px;color:var(--sub);line-height:1.5">送った写真と一緒に、お名前・会社名など・端末の情報（機種・この端末の番号）を記録します。このスマホが覚えるので、次からは入力不要です。</div>
+    </div>
   </div>
   <div id="shelfBox" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px">
     <label for="keyIn" id="keyLbl" style="font-size:13px;color:var(--sub)">管理者の合言葉（このスマホが覚えます）</label>
@@ -178,6 +185,12 @@ let KEY = '';
 try { KEY = P.get('key') || localStorage.getItem('sc_key') || ''; if (P.get('key')) localStorage.setItem('sc_key', P.get('key')); } catch (e) { KEY = P.get('key') || ''; }
 if (P.has('key')) { P.delete('key'); try { history.replaceState(null, '', location.pathname + (P.toString() ? '?' + P.toString() : '')); } catch (e) {} }
 const ADMIN = !CODE;
+// 端末ID：この端末（ブラウザ）だけの番号。最初に1回作って覚える（送った人の記録・止めるときに使う）
+let DEV = '';
+try { DEV = localStorage.getItem('sc_dev') || ''; } catch (e) {}
+if (!DEV) { DEV = Array.from(crypto.getRandomValues(new Uint8Array(10)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 16); try { localStorage.setItem('sc_dev', DEV); } catch (e) {} }
+const USER = { name: '', org: '' };
+try { USER.name = localStorage.getItem('sc_user_name') || ''; USER.org = localStorage.getItem('sc_user_org') || ''; } catch (e) {}
 const DEBUG = P.has('debug');
 const $ = id => document.getElementById(id);
 
@@ -188,7 +201,7 @@ if (ADMIN) {
   if (KEY) { $('keyIn').style.display = 'none'; $('keyLbl').style.display = 'none'; }
   if (shelf) $('shelfIn').value = shelf;
   else { try { $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {} }
-} else loadKids();
+} else { loadKids(); $('userName').value = USER.name; $('userOrg').value = USER.org; }
 function kidHtml() { return KID.list.map(k => `<button data-kid="${k.id}" class="${KID.sel && KID.sel.id === k.id ? 'on' : ''}">${k.label.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))}</button>`).join(''); }
 function kidPick(id) {
   KID.sel = KID.list.find(k => k.id === id) || null;
@@ -231,7 +244,7 @@ async function loadKids() {
   if (cached && cached.list) kidApply(name || cached.name, cached.list);
   else { KID.root = name; $('kidTitle').textContent = name || ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
   try {
-    const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
+    const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE) + '&dev=' + encodeURIComponent(DEV) + '&name=' + encodeURIComponent(USER.name));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
     KID.left = j.left;
     try { localStorage.setItem('sc_kids_' + CODE, JSON.stringify({ name: j.name, list: j.kids || [] })); } catch (e) {}
@@ -255,7 +268,12 @@ $('btnStart').onclick = async () => {
     if (!KEY) { KEY = $('keyIn').value.trim(); if (!KEY) { $('startErr').textContent = '合言葉を入れてください（施設の方は、棚の QR コードから開いてください）'; return; } try { localStorage.setItem('sc_key', KEY); } catch (e) {} }
     shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
     try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
-  } else if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '写真を入れる棚を選んでください'; return; }
+  } else {
+    if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '写真を入れる棚を選んでください'; return; }
+    USER.name = $('userName').value.trim().slice(0, 40); USER.org = $('userOrg').value.trim().slice(0, 60);
+    if (!USER.name) { $('startErr').textContent = 'お名前を入れてください（ニックネームでも大丈夫です）'; $('userName').focus(); return; }
+    try { localStorage.setItem('sc_user_name', USER.name); localStorage.setItem('sc_user_org', USER.org); } catch (e) {}
+  }
   try {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       const r = await DeviceOrientationEvent.requestPermission();
@@ -534,7 +552,10 @@ async function enqueue(s) {
   s.name = fileName(s);
   s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
   s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? (KID.sel.label === KID.root ? KID.root : KID.root + ' ＞ ' + KID.sel.label) : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
-    beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '' };
+    beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '',
+    // 送った人の記録（施設の QR）：端末ID・名前・所属・画面・言語・時間帯
+    dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
+    lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
   S.queue.push(s); updSent();
   try { await dbPut(s); s.saved = true; }
   catch (e) { toast('スマホに保存できませんでした。送り終わるまでページを閉じないでください（' + e.message + '）', 4000); }
@@ -642,13 +663,13 @@ async function pump() {
     // text/plain にすると、ブラウザの事前確認（CORS の preflight）なしで GAS に送れる
     const res = await fetch(s.gas || GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     const j = await res.json();
-    if (!j.ok) { const er = new Error(j.error || '保存できませんでした'); er.stop = !!j.limit; throw er; }
+    if (!j.ok) { const er = new Error(j.error || '保存できませんでした'); er.stop = !!j.limit || !!j.blocked; er.blocked = !!j.blocked; throw er; }
     if (S.queue[0] === s) S.queue.shift();
     await dbDel(s.name);   // 送り終わったら保存領域から消す
     S.sent++;
   } catch (e) {
-    if (e.stop) {   // 1日の上限：送り直さずに止める（写真はスマホに残り、次に開いたときに送る）
-      toast(e.message + '。撮った写真はスマホに残し、明日以降にこのページを開いたときに送ります', 6000);
+    if (e.stop) {   // 1日の上限・止められた端末：送り直さずに止める（写真はスマホに残り、次に開いたときに送る）
+      toast(e.blocked ? e.message : e.message + '。撮った写真はスマホに残し、明日以降にこのページを開いたときに送ります', 6000);
       S.busy = false; updSent(); return;
     }
     toast('送れませんでした。つながったら自動で送り直します（' + e.message + '）', 3500);
