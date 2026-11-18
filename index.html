@@ -21,7 +21,7 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { touch-action: manipulation; margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
   #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 16px; padding: 24px; text-align: center; overflow-y: auto; }
-  #start select { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
+  #start select { font: inherit; font-size: 20px; font-weight: 700; padding: 10px 12px; width: 100%; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
   #permNote { font-size: 12px !important; text-align: left; max-width: 340px; }
   #isbnDone { position: fixed; inset: 0; z-index: 7; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 24px; font-weight: 800; text-align: center; pointer-events: none; }
   #isbnDone small { font-size: 16px; font-weight: 700; color: var(--ok); }
@@ -146,12 +146,11 @@
 </head>
 <body>
 <div id="start">
-  <h1>背表紙を撮る</h1>
-  <p>本の<b>上辺・下辺</b>を、<b style="color:#ffd60a">黄色の点線</b>に合わせて撮ってください。<br>枠が<b style="color:var(--ok)">緑</b>になったら撮れます。</p>
+  <h1>撮影して本を追加する</h1>
   <div id="kidBox" style="display:none;width:100%;max-width:340px">
-    <div id="kidTitle" style="font-size:18px;font-weight:700;margin-bottom:8px;word-break:break-all;text-align:left"></div>
+    <div id="kidTitle" style="font-size:22px;font-weight:700;margin-bottom:8px;word-break:break-all;text-align:left"></div>
     <div id="kidList" class="kidList" style="text-align:left"></div>
-    <div style="font-size:15px;font-weight:700;margin-top:8px;text-align:left">この本棚に追加します</div>
+    <div style="font-size:22px;font-weight:700;margin-top:8px;text-align:left">に追加します</div>
     <div id="userBox" style="margin-top:16px;display:flex;flex-direction:column;gap:6px;text-align:left">
       <label for="userName" style="font-size:13px;color:var(--sub)">追加者のお名前（必須）</label>
       <input id="userName" autocomplete="name" placeholder="例：山田 太郎">
@@ -260,13 +259,13 @@ function kidOpt(k) {
   return kidName(k.label.startsWith(pre) ? k.label.slice(pre.length) : k.label);
 }
 function kidStartHtml() {
-  if (KID.list.length === 1) return `<div style="font-size:20px;font-weight:700;word-break:break-all">${esc(kidName(KID.list[0].label))}</div>`;
-  return `<select id="kidSel"><option value="">（追加する本棚を選んでください）</option>` +
+  if (KID.list.length === 1) return `<div style="font-size:22px;font-weight:700;word-break:break-all">${esc(kidName(KID.list[0].label))}</div>`;
+  return `<select id="kidSel"><option value="">（本棚を選んでください）</option>` +
     KID.list.map(k => `<option value="${esc(k.id)}"${KID.sel && KID.sel.id === k.id ? ' selected' : ''}>${esc(kidOpt(k))}</option>`).join('') + `</select>`;
 }
-function kidTitleSet() {   // 親カテゴリ名 -（棚が1つだけで、カテゴリそのものに入れるときは、下に名前を大きく出すので出さない）
+function kidTitleSet() {   // 親カテゴリ名 の（棚が1つだけで、カテゴリそのものに入れるときは、下に名前を大きく出すので出さない）
   const one = KID.list.length === 1 && KID.list[0].label === KID.root;
-  $('kidTitle').textContent = KID.root && !one ? KID.root + ' -' : '';
+  $('kidTitle').textContent = KID.root && !one ? KID.root + ' の' : '';
 }
 document.addEventListener('change', e => { if (e.target.id === 'kidSel' && e.target.value) kidPick(e.target.value); });
 function kidHtml() { return KID.list.map(k => `<button data-kid="${k.id}" class="${KID.sel && KID.sel.id === k.id ? 'on' : ''}">${k.label.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))}</button>`).join(''); }
@@ -313,7 +312,7 @@ async function loadKids() {
   let cached = null; try { cached = JSON.parse(localStorage.getItem('sc_kids_' + CODE) || 'null'); } catch (e) {}
   if (cached && cached.list) kidApply(name || cached.name, cached.list);
   else if (P.get('d') === '1' && name) {}
-  else { KID.root = name; $('kidTitle').textContent = name ? name + ' -' : ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
+  else { KID.root = name; $('kidTitle').textContent = name ? name + ' の' : ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
   try {
     const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE) + '&dev=' + encodeURIComponent(DEV) + '&name=' + encodeURIComponent(USER.name));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
