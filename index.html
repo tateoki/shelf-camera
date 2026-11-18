@@ -25,7 +25,7 @@
   #permNote { font-size: 12px !important; text-align: left; max-width: 340px; }
   #isbnDone { position: fixed; inset: 0; z-index: 7; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 24px; font-weight: 800; text-align: center; pointer-events: none; }
   #isbnDone small { font-size: 16px; font-weight: 700; color: var(--ok); }
-  #permNow { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 10px); z-index: 20; margin: 0 auto; display: none; font-size: 15px; font-weight: 700; color: #000; background: #ffd60a; padding: 10px 14px; border-radius: 10px; max-width: 340px; line-height: 1.6; text-align: left; }
+  #permNow { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 14px); z-index: 20; margin: 0 auto; display: none; font-size: 15px; font-weight: 700; color: #000; background: #ffd60a; padding: 10px 14px; border-radius: 10px; max-width: 340px; line-height: 1.6; text-align: left; }
   #start h1 { font-size: 20px; margin: 0; }
   #start p { color: var(--sub); font-size: 14px; line-height: 1.7; margin: 0; }
   #start input { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
@@ -52,6 +52,7 @@
   #topBar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 6px; }
   #topBar #shelfName { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0 4px rgba(0, 0, 0, .8); align-self: flex-start; padding-top: 6px; }   /* 棚の名前は上にそろえる（ボタンが2段でも1行目に出す） */
   #topBtns { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }   /* 右上：［撮影を終わる］の下に［棚を変える］（2つは同じ幅） */
+  #shelfIsbn { display: none; margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--ok); text-shadow: 0 0 4px rgba(0, 0, 0, .8); }
   #shelfName { color: #fff; font-size: 17px; font-weight: 700; word-break: break-all; }
   #guide { font-weight: 700; font-size: 15px; line-height: 1.5; color: #ffd60a; }   /* 4つの確認の下に、直し方（黄色）。そろったら緑で「撮影できます」 */
   #guide.ok { color: var(--ok); }
@@ -150,7 +151,7 @@
   <div id="kidBox" style="display:none;width:100%;max-width:340px">
     <div id="kidTitle" style="font-size:18px;font-weight:700;margin-bottom:8px;word-break:break-all;text-align:left"></div>
     <div id="kidList" class="kidList" style="text-align:left"></div>
-    <div style="font-size:15px;font-weight:700;margin-top:8px;text-align:left">この棚に追加します</div>
+    <div style="font-size:15px;font-weight:700;margin-top:8px;text-align:left">この本棚に追加します</div>
     <div id="userBox" style="margin-top:16px;display:flex;flex-direction:column;gap:6px;text-align:left">
       <label for="userName" style="font-size:13px;color:var(--sub)">追加者のお名前（必須）</label>
       <input id="userName" autocomplete="name" placeholder="例：山田 太郎">
@@ -176,11 +177,11 @@
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="isbnBox"><span>本の裏のバーコード（978…）を横向きに</span></div>
-  <div id="topBar"><div id="shelfName"></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div></div></div>
+  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div></div></div>
   <div id="sideL">
     <div id="checks"><span id="excel">エクセレント！</span><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
-    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">数字を入れる</button><button id="btnNoIsbn">ISBN が読めない場合はこちら（背表紙の撮影へ）</button></div>
+    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">ISBNを文字入力する</button><button id="btnNoIsbn">ISBNが読めない場合はこちらをタップしてください</button></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
@@ -202,7 +203,7 @@
 <canvas id="work"></canvas>
 <div id="toast"></div>
 <div id="isbnDone"></div>
-<div id="kidPop"><div><div style="font-weight:700;margin-bottom:10px">写真を入れる棚</div><div id="kidList2" class="kidList"></div></div></div>
+<div id="kidPop"><div><div style="font-weight:700;margin-bottom:10px">写真を入れる本棚</div><div id="kidList2" class="kidList"></div></div></div>
 <div id="sendBanner"><b id="sbTitle">送信中</b><br>送り終わるまで、このページを閉じないでください<br>ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）</div>
 <div id="endBox"><div id="endIn"><div id="endMsg"></div><div id="endSub"></div><div id="endBtns"></div></div></div>
 
@@ -261,7 +262,7 @@ function kidOpt(k) {
 }
 function kidStartHtml() {
   if (KID.list.length === 1) return `<div style="font-size:20px;font-weight:700;word-break:break-all">${esc(kidName(KID.list[0].label))}</div>`;
-  return `<select id="kidSel"><option value="">（追加するカテゴリを選んでください）</option>` +
+  return `<select id="kidSel"><option value="">（追加する本棚を選んでください）</option>` +
     KID.list.map(k => `<option value="${esc(k.id)}"${KID.sel && KID.sel.id === k.id ? ' selected' : ''}>${esc(kidOpt(k))}</option>`).join('') + `</select>`;
 }
 function kidTitleSet() {   // 親カテゴリ名 -（棚が1つだけで、カテゴリそのものに入れるときは、下に名前を大きく出すので出さない）
@@ -294,9 +295,9 @@ function jsonp(url, ms = 25000) {
 //   ・読み込み中でも［カメラを開始］を押せる（棚を選ぶまでは撮れない。一覧が届いたら選ぶ画面を出す）
 function kidApply(name, list) {
   KID.root = name || KID.root; KID.list = list || [];
-  // 配下の棚があるときは、そのカテゴリ自体（いちばん上の棚）も選べるようにする（受け口は kid が空ならカテゴリ自体に入れる）
-  if (KID.list.length && !(KID.list.length === 1 && KID.list[0].label === KID.root) && !KID.list.some(k => k.id === '_root'))
-    KID.list = [{ id: '_root', label: KID.root, root: true }].concat(KID.list.map(k => ({ id: k.id, label: KID.root + ' ＞ ' + k.label })));
+    // 配下の本棚があるときは、配下の本棚だけを出す（親の本棚そのものは出さない）。並びは受け口が返す順（カテゴリ管理の並び順）
+  if (KID.list.length && !(KID.list.length === 1 && KID.list[0].label === KID.root))
+    KID.list = KID.list.map(k => ({ id: k.id, label: k.label.startsWith(KID.root + ' ＞ ') ? k.label : KID.root + ' ＞ ' + k.label }));
   kidTitleSet();
   if (!KID.list.length) { $('kidList').innerHTML = '<div style="color:#ff9ea1">写真を入れられる棚がまだありません</div>'; KID.sel = null; return; }
   let last = KID.sel ? KID.sel.id : ''; if (!last) { try { last = localStorage.getItem('sc_kid_' + CODE) || ''; } catch (e) {} }
@@ -347,7 +348,7 @@ $('btnStart').onclick = async () => {
     shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
     try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
   } else {
-    if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '追加するカテゴリを選んでください'; return; }
+    if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '追加する本棚を選んでください'; return; }
     USER.name = $('userName').value.trim().slice(0, 40); USER.org = $('userOrg').value.trim().slice(0, 60);
     if (!USER.name) { $('startErr').textContent = '追加者のお名前を入れてください'; $('userName').focus(); return; }
     try { localStorage.setItem('sc_user_name', USER.name); localStorage.setItem('sc_user_org', USER.org); } catch (e) {}
@@ -666,7 +667,8 @@ function setFlow(f, first) {
   if (ADMIN) { try { localStorage.setItem('sc_flow', FLOW); } catch (e) {} }
   $('flowBtns').style.display = ADMIN ? 'flex' : 'none';
   $('btnFlowUser').classList.toggle('on', FLOW === 'user'); $('btnFlowAdmin').classList.toggle('on', FLOW === 'admin');
-  $('modeBtns').style.display = FLOW === 'user' ? 'none' : 'flex';   // 利用者モードは自動で切り替わるので、背表紙／ISBN のボタンは出さない
+  $('modeBtns').style.display = FLOW === 'user' ? 'none' : 'flex';
+  $('btnIsbnUndo').style.display = FLOW === 'user' ? 'none' : '';   // 利用者モード：［直前の ISBN を取り消す］は出さない（迷うため）   // 利用者モードは自動で切り替わるので、背表紙／ISBN のボタンは出さない
   if (FLOW === 'user' && (first || IS.mode !== 'isbn')) setMode('isbn');
   else layout();
   if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 送る、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
@@ -704,6 +706,7 @@ function setMode(m) {
   layout();
   if (m === 'isbn') { beepInit(); isbnInit(); isbnUi(); }
   else S.prev = null;
+  shelfIsbnUi();
 }
 $('btnModeSpine').onclick = () => setMode('spine');
 $('btnModeIsbn').onclick = () => setMode('isbn');
@@ -830,10 +833,20 @@ function pairPhoto(s) {
   }
   const streak = EV.last === 'photo' && EV.photo ? EV.photo.streak + 1 : 1;
   EV.photo = { name: s.name, at: now, paired: !!out, streak };
-  EV.last = 'photo'; evSave(); isbnUi();
+  EV.last = 'photo'; evSave(); isbnUi(); shelfIsbnUi();
   if (out) toast(`ISBN ${out.isbn} と組にしました`, 1500);
   return out;
 }
+// 背表紙の撮影画面：これから撮る写真と組になる ISBN（3分以内に読んで、まだ写真と組になっていない）を、棚名の下に出す
+function pendingIsbn() {
+  const q = EV && EV.isbn;
+  return EV && EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || FLOW === 'user') && Date.now() - q.at <= PAIR_MS ? q.isbn : '';
+}
+function shelfIsbnUi() {
+  const i = IS.mode === 'spine' ? pendingIsbn() : '', el = $('shelfIsbn');
+  el.textContent = i ? 'ISBN：' + i : ''; el.style.display = i ? 'block' : 'none';
+}
+setInterval(() => { if ($('cam').style.display === 'block') shelfIsbnUi(); }, 5000);   // 3分を過ぎたら消す
 function isbnUi() {
   const live = EV.list.filter(x => !x.cancelled), wait = live.filter(x => !x.paired).length;
   $('isbnCount').textContent = `読んだ ISBN：${live.length}冊` + (live.length ? `\n（背表紙待ち ${wait}）` : '');
