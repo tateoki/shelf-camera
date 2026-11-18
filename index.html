@@ -247,7 +247,10 @@ const CODE = (P.get('c') || '').trim();
 let KEY = '';
 try { KEY = P.get('key') || localStorage.getItem('sc_key') || ''; if (P.get('key')) localStorage.setItem('sc_key', P.get('key')); } catch (e) { KEY = P.get('key') || ''; }
 if (P.has('key')) { P.delete('key'); try { history.replaceState(null, '', location.pathname + (P.toString() ? '?' + P.toString() : '')); } catch (e) {} }
-const ADMIN = !CODE;
+// 管理者用の撮影 QR（カテゴリ管理の［📷 撮影 QR］で切り替えて出す。URL に a=1）：最初から管理者として開き、写真は QR のカテゴリの本棚に入れる
+//   利用者用の QR には、管理者の入口・表示を一切出さない
+const QA = !!CODE && P.get('a') === '1';
+const ADMIN = !CODE || QA;
 // 端末ID：この端末（ブラウザ）だけの番号。最初に1回作って覚える（送った人の記録・止めるときに使う）
 let DEV = '';
 try { DEV = localStorage.getItem('sc_dev') || ''; } catch (e) {}
@@ -262,7 +265,12 @@ const KID = { root: '', list: [], sel: null, left: null };   // 施設：いち�
 if (ADMIN) {
   $('shelfBox').style.display = 'flex';
   if (KEY) { $('keyIn').style.display = 'none'; $('keyLbl').style.display = 'none'; }
-  if (shelf) $('shelfIn').value = shelf;
+  if (QA) {   // 管理者用の QR：本棚は QR のカテゴリから選ぶ（棚の名前の欄・お名前の欄は出さない）
+    $('shelfIn').style.display = 'none'; document.querySelector('label[for="shelfIn"]').style.display = 'none';
+    if (KEY) $('shelfBox').style.display = 'none';
+    loadKids(); $('userBox').style.display = 'none';
+  }
+  else if (shelf) $('shelfIn').value = shelf;
   else { try { $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {} }
 } else { loadKids(); $('userName').value = USER.name; $('userOrg').value = USER.org; }
 // 最初の画面：棚が2つ以上ならドロップダウン（「親 ＞ 子」は「親 - 子」で出す）
@@ -340,7 +348,7 @@ async function loadKids() {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
 function shelfLabel() {
-  $('shelfName').textContent = ADMIN ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + (KID.sel ? KID.sel.label : KID.root);
+  $('shelfName').textContent = ADMIN && !CODE ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + (KID.sel ? KID.sel.label : KID.root);
 }
 
 const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
@@ -356,8 +364,11 @@ $('btnStart').onclick = async () => {
   if (!GAS_URL) { $('startErr').textContent = '送り先（GAS の URL）が設定されていません'; return; }
   if (ADMIN) {
     if (!KEY) { KEY = $('keyIn').value.trim(); if (!KEY) { $('startErr').textContent = '合言葉を入れてください（施設の方は、棚の QR コードから開いてください）'; return; } try { localStorage.setItem('sc_key', KEY); } catch (e) {} }
-    shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
-    try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
+    if (QA) { if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '追加する本棚を選んでください'; return; } }
+    else {
+      shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
+      try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
+    }
   } else {
     if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '追加する本棚を選んでください'; return; }
     USER.name = $('userName').value.trim().slice(0, 40); USER.org = $('userOrg').value.trim().slice(0, 60);
@@ -388,7 +399,7 @@ $('btnStart').onclick = async () => {
   }
   $('start').style.display = 'none'; $('cam').style.display = 'block';
   shelfLabel();
-  if (!ADMIN && KID.list.length > 1) $('btnKid').style.display = 'inline-block';
+  if (CODE && KID.list.length > 1) $('btnKid').style.display = 'inline-block';
   if (DEBUG) $('debug').style.display = 'block';
   layout(); setTimeout(() => { if (S.beta === null) S.orientWarn = true; }, 1500);
   setFlow(FLOW, true);
@@ -603,7 +614,7 @@ async function afTap(x, y) {
 
 // ---------------- 撮る → 撮った後の確認 ----------------
 $('shutter').onclick = () => {
-  if (!ADMIN && !KID.sel) {   // 施設：棚がまだ決まっていない（読み込み中・選んでいない）
+  if (CODE && !KID.sel) {   // 施設：棚がまだ決まっていない（読み込み中・選んでいない）
     if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
     toast(KID.list.length ? '写真を入れる棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
   }
@@ -655,7 +666,7 @@ $('btnSend').onclick = () => {
 
 // 標準のカメラで撮る（枠・角度の確認なし。システムは写真の中央の本を対象にする）
 $('fallback').onclick = () => {
-  if (!ADMIN && !KID.sel) { if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; } toast('写真を入れる棚を選んでください'); return; }
+  if (CODE && !KID.sel) { if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; } toast('写真を入れる棚を選んでください'); return; }
   $('fileIn').click();
 };
 $('fileIn').onchange = async e => {
@@ -726,7 +737,7 @@ function isbn13(v) {   // 10桁・13桁 → 13桁（チェック数字が合わ�
   return /^97[89]\d{10}$/.test(s) && ck13(s.slice(0, 12)) === s[12] ? s : '';
 }
 function setMode(m) {
-  if (m === 'isbn' && !ADMIN && !KID.sel) {
+  if (m === 'isbn' && CODE && !KID.sel) {
     if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
     toast(KID.list.length ? '先に棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
   }
@@ -957,7 +968,7 @@ function isbnUi() {
 function isbnSend(o) {
   const s = { name: o.id, gas: GAS_URL, key: ADMIN ? KEY : '', blob: null, at: o.at };
   s.meta = { type: 'isbn', how: o.how, isbn: o.isbn, pair_photo: o.pair || '', target: o.target || '', name: o.id, taken_at: o.at.toISOString(),
-    shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : kidId(), kid_label: ADMIN ? '' : (KID.sel ? KID.sel.label : ''),
+    shelf: CODE ? '' : shelf, code: CODE, kid: CODE ? kidId() : '', kid_label: CODE && KID.sel ? KID.sel.label : '',
     ua: navigator.userAgent, dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
     lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
   S.queue.push(s); updSent();
@@ -993,7 +1004,7 @@ function fileName(s) {
 async function enqueue(s) {
   s.name = fileName(s);
   s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
-  s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : kidId(), kid_label: ADMIN ? '' : (KID.sel ? KID.sel.label : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+  s.meta = { name: s.name, shelf: CODE ? '' : shelf, code: CODE, kid: CODE ? kidId() : '', kid_label: CODE && KID.sel ? KID.sel.label : '', source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
     beta: s.beta, gamma: s.gamma, land: !!s.land, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '',
     // 送った人の記録（施設の QR）：端末ID・名前・所属・画面・言語・時間帯
     dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
