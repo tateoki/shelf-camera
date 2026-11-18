@@ -23,7 +23,9 @@
   #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 16px; padding: 24px; text-align: center; overflow-y: auto; }
   #start select { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
   #permNote { font-size: 12px !important; text-align: left; max-width: 340px; }
-  #permNow { display: none; font-size: 15px; font-weight: 700; color: #000; background: #ffd60a; padding: 10px 14px; border-radius: 10px; max-width: 340px; line-height: 1.6; text-align: left; }
+  #isbnDone { position: fixed; inset: 0; z-index: 7; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 24px; font-weight: 800; text-align: center; pointer-events: none; }
+  #isbnDone small { font-size: 16px; font-weight: 700; color: var(--ok); }
+  #permNow { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 10px); z-index: 20; margin: 0 auto; display: none; font-size: 15px; font-weight: 700; color: #000; background: #ffd60a; padding: 10px 14px; border-radius: 10px; max-width: 340px; line-height: 1.6; text-align: left; }
   #start h1 { font-size: 20px; margin: 0; }
   #start p { color: var(--sub); font-size: 14px; line-height: 1.7; margin: 0; }
   #start input { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
@@ -109,8 +111,8 @@
   #modeBtns button, #flowBtns button { flex: 1; font-size: 13px; font-weight: 700; padding: 7px 6px; white-space: nowrap; background: rgba(60, 60, 60, .85); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #modeBtns button.on, #flowBtns button.on { background: #fff; color: #000; }
   /* 角度が ±EXCEL 度以内：シャッターのすぐ上に1行 */
-  #excel { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); white-space: nowrap; display: none; font-size: 16px; font-weight: 900; color: #000; padding: 4px 10px; border-radius: 999px;
-    background: linear-gradient(90deg, #ffe600, #ff9f0a); box-shadow: 0 0 10px rgba(255, 200, 0, .9); }
+  #excel { display: none; white-space: nowrap; font-size: 12px; font-weight: 900; color: #000; padding: 2px 10px !important; margin-bottom: -6px; border-radius: 999px;
+    background: linear-gradient(90deg, #ffe600, #ff9f0a) !important; box-shadow: 0 0 8px rgba(255, 200, 0, .9); }
   /* ISBN が読めない本：背表紙の撮影へ */
   #btnNoIsbn { background: #ffd60a !important; color: #000 !important; }
   /* スマホを横に持ったとき（画面も横）：枠は横長（寝かせた本の背表紙）。本の上を左の線、下を右の線に合わせる。写真は縦に回して送る */
@@ -146,7 +148,7 @@
   <h1>背表紙を撮る</h1>
   <p>本の<b>上辺・下辺</b>を、<b style="color:#ffd60a">黄色の点線</b>に合わせて撮ってください。<br>枠が<b style="color:var(--ok)">緑</b>になったら撮れます。</p>
   <div id="kidBox" style="display:none;width:100%;max-width:340px">
-    <div id="kidTitle" style="font-size:15px;color:var(--sub);margin-bottom:6px;word-break:break-all;text-align:left"></div>
+    <div id="kidTitle" style="font-size:18px;font-weight:700;margin-bottom:8px;word-break:break-all;text-align:left"></div>
     <div id="kidList" class="kidList" style="text-align:left"></div>
     <div style="font-size:15px;font-weight:700;margin-top:8px;text-align:left">この棚に追加します</div>
     <div id="userBox" style="margin-top:16px;display:flex;flex-direction:column;gap:6px;text-align:left">
@@ -176,14 +178,14 @@
   <div id="isbnBox"><span>本の裏のバーコード（978…）を横向きに</span></div>
   <div id="topBar"><div id="shelfName"></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div></div></div>
   <div id="sideL">
-    <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
+    <div id="checks"><span id="excel">エクセレント！</span><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
     <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">数字を入れる</button><button id="btnNoIsbn">ISBN が読めない場合はこちら（背表紙の撮影へ）</button></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
   <div id="sideR">
-    <div id="shutterWrap"><div id="excel">エクセレント！</div><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
+    <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
     <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
   <div id="afBox"><span>ピント固定</span></div>
@@ -199,6 +201,7 @@
 <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
 <canvas id="work"></canvas>
 <div id="toast"></div>
+<div id="isbnDone"></div>
 <div id="kidPop"><div><div style="font-weight:700;margin-bottom:10px">写真を入れる棚</div><div id="kidList2" class="kidList"></div></div></div>
 <div id="sendBanner"><b id="sbTitle">送信中</b><br>送り終わるまで、このページを閉じないでください<br>ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）</div>
 <div id="endBox"><div id="endIn"><div id="endMsg"></div><div id="endSub"></div><div id="endBtns"></div></div></div>
@@ -247,14 +250,21 @@ if (ADMIN) {
   else { try { $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {} }
 } else { loadKids(); $('userName').value = USER.name; $('userOrg').value = USER.org; }
 // 最初の画面：棚が2つ以上ならドロップダウン（「親 ＞ 子」は「親 - 子」で出す）
-const kidName = l => String(l || '').replace(/\s*＞\s*/g, ' - ');
-const esc = t => String(t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-function kidStartHtml() {
-  if (KID.list.length === 1) return `<div style="font-size:18px;font-weight:700;word-break:break-all">${esc(kidName(KID.list[0].label))}</div>`;
-  return `<select id="kidSel"><option value="">（追加するカテゴリを選んでください）</option>` +
-    KID.list.map(k => `<option value="${esc(k.id)}"${KID.sel && KID.sel.id === k.id ? ' selected' : ''}>${esc(kidName(k.label))}</option>`).join('') + `</select>`;
+function kidName(l) { return String(l || '').replace(/\s*＞\s*/g, ' - '); }
+function esc(t) { return String(t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+function kidId() { return KID.sel ? (KID.sel.root ? '' : KID.sel.id) : ''; }   // 受け口へ：カテゴリそのものは空
+// ドロップダウンの文字：いちばん上のカテゴリ名を除いた「子 - 孫」。カテゴリそのものは「（○○ そのもの）」
+function kidOpt(k) {
+  if (k.root || k.label === KID.root) return `（${KID.root} そのもの）`;
+  const pre = KID.root + ' ＞ ';
+  return kidName(k.label.startsWith(pre) ? k.label.slice(pre.length) : k.label);
 }
-function kidTitleSet() {   // 親カテゴリ名 - …（棚が1つで、カテゴリ自体に入れるときは出さない）
+function kidStartHtml() {
+  if (KID.list.length === 1) return `<div style="font-size:20px;font-weight:700;word-break:break-all">${esc(kidName(KID.list[0].label))}</div>`;
+  return `<select id="kidSel"><option value="">（追加するカテゴリを選んでください）</option>` +
+    KID.list.map(k => `<option value="${esc(k.id)}"${KID.sel && KID.sel.id === k.id ? ' selected' : ''}>${esc(kidOpt(k))}</option>`).join('') + `</select>`;
+}
+function kidTitleSet() {   // 親カテゴリ名 -（棚が1つだけで、カテゴリそのものに入れるときは、下に名前を大きく出すので出さない）
   const one = KID.list.length === 1 && KID.list[0].label === KID.root;
   $('kidTitle').textContent = KID.root && !one ? KID.root + ' -' : '';
 }
@@ -284,6 +294,9 @@ function jsonp(url, ms = 25000) {
 //   ・読み込み中でも［カメラを開始］を押せる（棚を選ぶまでは撮れない。一覧が届いたら選ぶ画面を出す）
 function kidApply(name, list) {
   KID.root = name || KID.root; KID.list = list || [];
+  // 配下の棚があるときは、そのカテゴリ自体（いちばん上の棚）も選べるようにする（受け口は kid が空ならカテゴリ自体に入れる）
+  if (KID.list.length && !(KID.list.length === 1 && KID.list[0].label === KID.root) && !KID.list.some(k => k.id === '_root'))
+    KID.list = [{ id: '_root', label: KID.root, root: true }].concat(KID.list.map(k => ({ id: k.id, label: KID.root + ' ＞ ' + k.label })));
   kidTitleSet();
   if (!KID.list.length) { $('kidList').innerHTML = '<div style="color:#ff9ea1">写真を入れられる棚がまだありません</div>'; KID.sel = null; return; }
   let last = KID.sel ? KID.sel.id : ''; if (!last) { try { last = localStorage.getItem('sc_kid_' + CODE) || ''; } catch (e) {} }
@@ -296,9 +309,10 @@ function kidApply(name, list) {
 async function loadKids() {
   $('kidBox').style.display = 'block';
   const name = (P.get('n') || '').trim();
-  if (P.get('d') === '1' && name) { kidApply(name, [{ id: '', label: name }]); return; }   // 配下の棚がない：読み込まない
+  if (P.get('d') === '1' && name) kidApply(name, [{ id: '', label: name }]);   // QR を作ったときは配下の棚がなかった：すぐ出す（あとで棚が増えていることがあるので、裏で読み直す）
   let cached = null; try { cached = JSON.parse(localStorage.getItem('sc_kids_' + CODE) || 'null'); } catch (e) {}
   if (cached && cached.list) kidApply(name || cached.name, cached.list);
+  else if (P.get('d') === '1' && name) {}
   else { KID.root = name; $('kidTitle').textContent = name ? name + ' -' : ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
   try {
     const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE) + '&dev=' + encodeURIComponent(DEV) + '&name=' + encodeURIComponent(USER.name));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
@@ -310,7 +324,7 @@ async function loadKids() {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
 function shelfLabel() {
-  $('shelfName').textContent = ADMIN ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + KID.root + (KID.sel && KID.sel.label !== KID.root ? ' ＞ ' + KID.sel.label : '');
+  $('shelfName').textContent = ADMIN ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + (KID.sel ? KID.sel.label : KID.root);
 }
 
 const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
@@ -652,6 +666,7 @@ function setFlow(f, first) {
   if (ADMIN) { try { localStorage.setItem('sc_flow', FLOW); } catch (e) {} }
   $('flowBtns').style.display = ADMIN ? 'flex' : 'none';
   $('btnFlowUser').classList.toggle('on', FLOW === 'user'); $('btnFlowAdmin').classList.toggle('on', FLOW === 'admin');
+  $('modeBtns').style.display = FLOW === 'user' ? 'none' : 'flex';   // 利用者モードは自動で切り替わるので、背表紙／ISBN のボタンは出さない
   if (FLOW === 'user' && (first || IS.mode !== 'isbn')) setMode('isbn');
   else layout();
   if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 送る、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
@@ -745,7 +760,7 @@ async function isbnInit() {
   } catch (e) { isbnMsg(e.message + '。［数字を入れる］を使ってください', 'ng'); }
 }
 function isbnTick(t) {
-  if (IS.busy || t - IS.lastT < 120 || !BOX || (!IS.det && !IS.zx)) return;
+  if (IS.hold || IS.busy || t - IS.lastT < 120 || !BOX || (!IS.det && !IS.zx)) return;
   IS.lastT = t; IS.busy = true;
   isbnDecode().then(c => { if (c) onBarcode(c); }).catch(() => {}).finally(() => { IS.busy = false; });
 }
@@ -793,7 +808,14 @@ function isbnAdd(isbn, how) {
   beep(true); boxFlash('ok');
   isbnMsg(`${isbn}${pair ? '：直前の背表紙と組にしました' : FLOW === 'user' ? '：この本の背表紙を撮ってください' : streak > 1 ? '：まとめて読んでいます' : '：続けて背表紙を撮ると組にします（3分以内）'}`, 'ok');
   isbnUi();
-  if (FLOW === 'user') setTimeout(() => { if (IS.mode === 'isbn') { setMode('spine'); toast(`ISBN ${isbn}\n続けて、この本の背表紙を撮ってください`, 2500); } }, 700);   // 利用者モード：自動で背表紙へ
+  if (FLOW === 'user') {   // 利用者モード：「ISBN を読み取りました」を1秒出してから、背表紙の撮影へ
+    IS.hold = true;
+    const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}</small>`; d.style.display = 'flex';
+    setTimeout(() => {
+      d.style.display = 'none'; IS.hold = false;
+      if (IS.mode === 'isbn') { setMode('spine'); toast('この本の背表紙を撮ってください', 2200); }
+    }, 1000);
+  }
 }
 $('btnNoIsbn').onclick = () => {   // ISBN がない・読めない本：組にせずに背表紙を撮る
   EV.last = 'skip'; evSave();
@@ -821,7 +843,7 @@ function isbnUi() {
 function isbnSend(o) {
   const s = { name: o.id, gas: GAS_URL, key: ADMIN ? KEY : '', blob: null, at: o.at };
   s.meta = { type: 'isbn', how: o.how, isbn: o.isbn, pair_photo: o.pair || '', target: o.target || '', name: o.id, taken_at: o.at.toISOString(),
-    shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? (KID.sel.label === KID.root ? KID.root : KID.root + ' ＞ ' + KID.sel.label) : ''),
+    shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : kidId(), kid_label: ADMIN ? '' : (KID.sel ? KID.sel.label : ''),
     ua: navigator.userAgent, dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
     lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
   S.queue.push(s); updSent();
@@ -857,7 +879,7 @@ function fileName(s) {
 async function enqueue(s) {
   s.name = fileName(s);
   s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
-  s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? (KID.sel.label === KID.root ? KID.root : KID.root + ' ＞ ' + KID.sel.label) : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+  s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : kidId(), kid_label: ADMIN ? '' : (KID.sel ? KID.sel.label : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
     beta: s.beta, gamma: s.gamma, land: !!s.land, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '',
     // 送った人の記録（施設の QR）：端末ID・名前・所属・画面・言語・時間帯
     dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
