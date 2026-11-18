@@ -20,7 +20,10 @@
   :root { --ok: #2fbf71; --ng: #e5484d; --bg: #000; --fg: #fff; --sub: #bbb; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { touch-action: manipulation; margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; overflow: hidden; }
-  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 16px; padding: 24px; text-align: center; overflow-y: auto; }
+  #start select { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
+  #permNote { font-size: 12px !important; text-align: left; max-width: 340px; }
+  #permNow { display: none; font-size: 15px; font-weight: 700; color: #000; background: #ffd60a; padding: 10px 14px; border-radius: 10px; max-width: 340px; line-height: 1.6; text-align: left; }
   #start h1 { font-size: 20px; margin: 0; }
   #start p { color: var(--sub); font-size: 14px; line-height: 1.7; margin: 0; }
   #start input { font: inherit; font-size: 16px; padding: 10px 12px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #555; background: #111; color: var(--fg); }
@@ -78,7 +81,7 @@
   #reviewMsg.ng { color: #ff9ea1; }
   #reviewBtns { display: flex; gap: 12px; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom) + 18px); }
   #reviewBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
-  #toast { position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
+  #toast { white-space: pre-line; position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
   canvas { display: none; }
   .kidList { display: flex; flex-direction: column; gap: 8px; }
   .kidList button { background: rgba(255, 255, 255, .15); color: #fff; border-radius: 10px; text-align: left; padding: 12px 14px; }
@@ -100,9 +103,28 @@
   #endBtns { display: flex; flex-direction: column; gap: 10px; }
   #endBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
   /* ISBN のバーコードを読む（［▥ ISBN］）：写真は撮らず、横長の枠の中のバーコードを読み続ける */
-  #modeBtns { position: absolute; top: 10px; right: 8px; align-items: stretch; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
-  #modeBtns button { font-size: 14px; font-weight: 700; padding: 8px 10px; white-space: nowrap; background: rgba(255, 255, 255, .18); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
-  #modeBtns button.on { background: #fff; color: #000; }
+  /* 切り替え（［棚を変える］の下）：背表紙／ISBN・利用者モード／管理者モード（管理者だけ） */
+  #modeBtns, #flowBtns { display: flex; gap: 4px; }
+  #flowBtns { display: none; }
+  #modeBtns button, #flowBtns button { flex: 1; font-size: 13px; font-weight: 700; padding: 7px 6px; white-space: nowrap; background: rgba(60, 60, 60, .85); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #modeBtns button.on, #flowBtns button.on { background: #fff; color: #000; }
+  /* 角度が ±EXCEL 度以内：シャッターのすぐ上に1行 */
+  #excel { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); white-space: nowrap; display: none; font-size: 16px; font-weight: 900; color: #000; padding: 4px 10px; border-radius: 999px;
+    background: linear-gradient(90deg, #ffe600, #ff9f0a); box-shadow: 0 0 10px rgba(255, 200, 0, .9); }
+  /* ISBN が読めない本：背表紙の撮影へ */
+  #btnNoIsbn { background: #ffd60a !important; color: #000 !important; }
+  /* スマホを横に持ったとき（画面も横）：枠は横長（寝かせた本の背表紙）。本の上を左の線、下を右の線に合わせる。写真は縦に回して送る */
+  body.land #topBtns { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; max-width: 72%; }
+  body.land #topBtns > button, body.land #modeBtns button, body.land #flowBtns button { font-size: 13px; padding: 6px 10px; }
+  body.land .hline { left: auto; right: auto; top: -14px; bottom: -14px; height: auto; width: 0; border-top: 0; border-left: 3px dashed #ffd60a; }
+  body.land #hTop { left: 5%; top: -14px; } body.land #hBot { left: 95%; top: -14px; }
+  body.land #hTop span, body.land #hBot span { top: auto; bottom: calc(100% + 2px); left: 0; transform: translateX(-50%); }
+  body.land #checks { margin-top: 4px; gap: 6px; font-size: 15px; }
+  body.land #checks span { padding: 5px 12px; }
+  body.land #guide { font-size: 13px; }
+  body.land #camTools { flex-direction: row; gap: 4px; top: calc(100% + 8px); }
+  body.land #camTools button { width: 40px; font-size: 12px; }
+  body.land.isbn #sideL { top: var(--bar, 64px); }
   #isbnBox { position: absolute; display: none; border: 3px solid #ffd60a; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #isbnBox.ok { border-color: var(--ok); } #isbnBox.ng { border-color: var(--ng); }
   #isbnBox span { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 700; color: #000; background: #ffd60a; padding: 2px 8px; border-radius: 4px; }
@@ -111,7 +133,8 @@
   #isbnMsg { font-size: 13px; font-weight: 700; line-height: 1.45; color: #ffd60a; word-break: break-all; }
   #isbnMsg.ok { color: var(--ok); } #isbnMsg.ng { color: #ff9ea1; }
   #isbnPanel button { font-size: 13px; font-weight: 700; padding: 8px 10px; border-radius: 12px; line-height: 1.3; background: #fff; color: #000; }
-  body.isbn #frame, body.isbn #checks, body.isbn #guide, body.isbn #shutterWrap, body.isbn #fallback, body.isbn #level, body.isbn #afBox { display: none !important; }
+  body.isbn #frame, body.isbn #checks, body.isbn #guide, body.isbn #shutterWrap, body.isbn #fallback, body.isbn #level, body.isbn #afBox, body.isbn #excel { display: none !important; }
+  body.land.isbn #isbnPanel { margin-top: auto; }
   body.isbn #isbnBox { display: block; } body.isbn #isbnPanel { display: flex; } body.isbn #sent { margin-top: auto; }
   body.isbn #sideL { top: var(--boxb, 50%); padding-top: 10px; }   /* ISBN の枠の下から */
   body.isbn #isbnPanel { margin-top: 0; }
@@ -123,15 +146,15 @@
   <h1>背表紙を撮る</h1>
   <p>本の<b>上辺・下辺</b>を、<b style="color:#ffd60a">黄色の点線</b>に合わせて撮ってください。<br>枠が<b style="color:var(--ok)">緑</b>になったら撮れます。</p>
   <div id="kidBox" style="display:none;width:100%;max-width:340px">
-    <div id="kidTitle" style="font-size:18px;font-weight:700;margin-bottom:8px"></div>
-    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">写真を入れる棚を選んでください</div>
-    <div id="kidList" class="kidList"></div>
-    <div id="userBox" style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
-      <label for="userName" style="font-size:13px;color:var(--sub)">お名前（ニックネームでも可・必須）</label>
-      <input id="userName" autocomplete="name" placeholder="例：山田">
-      <label for="userOrg" style="font-size:13px;color:var(--sub)">会社名・部屋番号など（任意）</label>
-      <input id="userOrg" autocomplete="organization" placeholder="例：〇〇株式会社">
-      <div style="font-size:12px;color:var(--sub);line-height:1.5">送った写真と一緒に、お名前・会社名など・端末の情報（機種・この端末の番号）を記録します。このスマホが覚えるので、次からは入力不要です。</div>
+    <div id="kidTitle" style="font-size:15px;color:var(--sub);margin-bottom:6px;word-break:break-all;text-align:left"></div>
+    <div id="kidList" class="kidList" style="text-align:left"></div>
+    <div style="font-size:15px;font-weight:700;margin-top:8px;text-align:left">この棚に追加します</div>
+    <div id="userBox" style="margin-top:16px;display:flex;flex-direction:column;gap:6px;text-align:left">
+      <label for="userName" style="font-size:13px;color:var(--sub)">追加者のお名前（必須）</label>
+      <input id="userName" autocomplete="name" placeholder="例：山田 太郎">
+      <label for="userOrg" style="font-size:13px;color:var(--sub)">追加者の所属（もしくは部署）</label>
+      <input id="userOrg" autocomplete="organization" placeholder="例：〇〇株式会社 営業部">
+      <div style="font-size:12px;color:var(--sub);line-height:1.5">送った写真と一緒に、お名前・所属・端末の情報（機種・この端末の番号）を記録します。このスマホが覚えるので、次からは入力不要です。</div>
     </div>
   </div>
   <div id="shelfBox" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px">
@@ -140,7 +163,9 @@
     <label for="shelfIn" style="font-size:13px;color:var(--sub)">棚（フォルダ）の名前（入れ子は / で区切る。空なら振り分け待ち）</label>
     <input id="shelfIn" placeholder="例：kernel-hongo__kernel本郷">
   </div>
+  <p id="permNote"></p>
   <button id="btnStart">カメラを開始</button>
+  <div id="permNow"></div>
   <p id="startErr" style="color:#ff9ea1"></p>
   <p id="startLeft" style="display:none;color:#000;background:#ffd60a;padding:10px 14px;border-radius:10px;font-weight:700"></p>
 </div>
@@ -149,17 +174,16 @@
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="isbnBox"><span>本の裏のバーコード（978…）を横向きに</span></div>
-  <div id="topBar"><div id="shelfName"></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button></div></div>
+  <div id="topBar"><div id="shelfName"></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div></div></div>
   <div id="sideL">
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
-    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">数字を入れる</button></div>
+    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">数字を入れる</button><button id="btnNoIsbn">ISBN が読めない場合はこちら（背表紙の撮影へ）</button></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
   <div id="sideR">
-    <div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div>
-    <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
+    <div id="shutterWrap"><div id="excel">エクセレント！</div><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
     <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
   <div id="afBox"><span>ピント固定</span></div>
@@ -186,7 +210,8 @@ const CONFIG = {
   GAS_URL: 'https://script.google.com/macros/s/AKfycbwjLMBAuYXmrCRprISEhkbh5Pdf1ccbeGh-RJh7o6_4QxjTNId9usnozvGE0NEDiCAwag/exec',            // GAS の Web アプリの URL（https://script.google.com/macros/s/…/exec）。空なら URL の ?gas= を使う
   FRAME_W: 1 / 3,         // 枠の幅（画面の幅に対する割合）
   FRAME_H: 0.85,          // 枠の高さ（画面の高さに対する割合。案内・ボタンは左右の暗い所に置く）
-  TILT_MAX: 5,            // 前後の傾きの許す範囲（度）
+  TILT_MAX: 5,            // 前後の傾きの許す範囲（度）。この範囲で ○（撮れる）
+  EXCEL: 2,               // この範囲なら ◎ とシャッターの上に「エクセレント！」
   SHARP_MIN: 18,          // くっきり具合の下限（枠の中のエッジの強さ。実機で調整する）
   SHARP_AFTER_RATIO: 0.6, // 撮った後：撮る前の値のこの割合より下ならぼやけとみなす
   ROT_MAX: 25,            // 揺れの上限（スマホの回る速さ・度/秒。ジャイロで測る。手で持って止めた状態で通る値）
@@ -221,11 +246,24 @@ if (ADMIN) {
   if (shelf) $('shelfIn').value = shelf;
   else { try { $('shelfIn').value = localStorage.getItem('sc_shelf') || ''; } catch (e) {} }
 } else { loadKids(); $('userName').value = USER.name; $('userOrg').value = USER.org; }
+// 最初の画面：棚が2つ以上ならドロップダウン（「親 ＞ 子」は「親 - 子」で出す）
+const kidName = l => String(l || '').replace(/\s*＞\s*/g, ' - ');
+const esc = t => String(t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+function kidStartHtml() {
+  if (KID.list.length === 1) return `<div style="font-size:18px;font-weight:700;word-break:break-all">${esc(kidName(KID.list[0].label))}</div>`;
+  return `<select id="kidSel"><option value="">（追加するカテゴリを選んでください）</option>` +
+    KID.list.map(k => `<option value="${esc(k.id)}"${KID.sel && KID.sel.id === k.id ? ' selected' : ''}>${esc(kidName(k.label))}</option>`).join('') + `</select>`;
+}
+function kidTitleSet() {   // 親カテゴリ名 - …（棚が1つで、カテゴリ自体に入れるときは出さない）
+  const one = KID.list.length === 1 && KID.list[0].label === KID.root;
+  $('kidTitle').textContent = KID.root && !one ? KID.root + ' -' : '';
+}
+document.addEventListener('change', e => { if (e.target.id === 'kidSel' && e.target.value) kidPick(e.target.value); });
 function kidHtml() { return KID.list.map(k => `<button data-kid="${k.id}" class="${KID.sel && KID.sel.id === k.id ? 'on' : ''}">${k.label.replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))}</button>`).join(''); }
 function kidPick(id) {
   KID.sel = KID.list.find(k => k.id === id) || null;
   try { localStorage.setItem('sc_kid_' + CODE, id); } catch (e) {}
-  $('kidList').innerHTML = kidHtml(); $('kidList2').innerHTML = kidHtml();
+  $('kidList').innerHTML = kidStartHtml(); $('kidList2').innerHTML = kidHtml();
   $('kidPop').style.display = 'none'; shelfLabel(); if ($('cam').style.display === 'block') layout();
 }
 // 受け口に JSONP で聞く（スクリプトとして読み込む。iPhone の Safari が fetch を止めても読める）
@@ -246,11 +284,11 @@ function jsonp(url, ms = 25000) {
 //   ・読み込み中でも［カメラを開始］を押せる（棚を選ぶまでは撮れない。一覧が届いたら選ぶ画面を出す）
 function kidApply(name, list) {
   KID.root = name || KID.root; KID.list = list || [];
-  $('kidTitle').textContent = KID.root;
+  kidTitleSet();
   if (!KID.list.length) { $('kidList').innerHTML = '<div style="color:#ff9ea1">写真を入れられる棚がまだありません</div>'; KID.sel = null; return; }
   let last = KID.sel ? KID.sel.id : ''; if (!last) { try { last = localStorage.getItem('sc_kid_' + CODE) || ''; } catch (e) {} }
   KID.sel = KID.list.find(k => k.id === last) || (KID.list.length === 1 ? KID.list[0] : null);
-  $('kidList').innerHTML = KID.list.length === 1 ? `<div style="font-size:14px">この棚に入れます</div>` : kidHtml();
+  $('kidList').innerHTML = kidStartHtml();
   $('kidList2').innerHTML = kidHtml();
   if ($('cam').style.display === 'block') { shelfLabel(); layout(); if (!KID.sel && KID.list.length > 1) { $('btnKid').style.display = 'inline-block'; $('kidPop').style.display = 'flex'; } }
   if (KID.list.length > 1 && $('cam').style.display === 'block') $('btnKid').style.display = 'inline-block';
@@ -261,7 +299,7 @@ async function loadKids() {
   if (P.get('d') === '1' && name) { kidApply(name, [{ id: '', label: name }]); return; }   // 配下の棚がない：読み込まない
   let cached = null; try { cached = JSON.parse(localStorage.getItem('sc_kids_' + CODE) || 'null'); } catch (e) {}
   if (cached && cached.list) kidApply(name || cached.name, cached.list);
-  else { KID.root = name; $('kidTitle').textContent = name || ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
+  else { KID.root = name; $('kidTitle').textContent = name ? name + ' -' : ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
   try {
     const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE) + '&dev=' + encodeURIComponent(DEV) + '&name=' + encodeURIComponent(USER.name));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
@@ -280,6 +318,13 @@ const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sha
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
 
 // ---------------- 開始（iPhone は、角度のセンサーの許可をボタンを押したときに求める決まり） ----------------
+//   許可の画面（iPhone の標準の画面）の文言は変えられないため、聞く前の説明と、聞いている間の理由を、このページに出す
+const NEED_MOTION = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+$('permNote').textContent = NEED_MOTION
+  ? '［カメラを開始］を押すと、許可を2回聞かれます。どちらも「許可」を押してください。\n①「動作と方向」：スマホの傾き・揺れを測って、まっすぐ・ぶれずに撮れたかを確かめるため\n②「カメラ」：背表紙と本の裏のバーコード（ISBN）を撮るため'
+  : '［カメラを開始］を押すと、カメラの許可を聞かれます（背表紙と本の裏のバーコードを撮るため）。「許可」を押してください。';
+$('permNote').style.whiteSpace = 'pre-line';
+function permNow(t) { const el = $('permNow'); el.textContent = t; el.style.whiteSpace = 'pre-line'; el.style.display = t ? 'block' : 'none'; }
 $('btnStart').onclick = async () => {
   $('startErr').textContent = '';
   if (!GAS_URL) { $('startErr').textContent = '送り先（GAS の URL）が設定されていません'; return; }
@@ -288,13 +333,14 @@ $('btnStart').onclick = async () => {
     shelf = $('shelfIn').value.trim().replace(/\s*\/\s*/g, '/');
     try { localStorage.setItem('sc_shelf', shelf); } catch (e) {}
   } else {
-    if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '写真を入れる棚を選んでください'; return; }
+    if (!KID.sel && KID.list.length > 1) { $('startErr').textContent = '追加するカテゴリを選んでください'; return; }
     USER.name = $('userName').value.trim().slice(0, 40); USER.org = $('userOrg').value.trim().slice(0, 60);
-    if (!USER.name) { $('startErr').textContent = 'お名前を入れてください（ニックネームでも大丈夫です）'; $('userName').focus(); return; }
+    if (!USER.name) { $('startErr').textContent = '追加者のお名前を入れてください'; $('userName').focus(); return; }
     try { localStorage.setItem('sc_user_name', USER.name); localStorage.setItem('sc_user_org', USER.org); } catch (e) {}
   }
   try {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    if (NEED_MOTION) {
+      permNow('（1/2）いま「動作と方向」へのアクセスを聞いています。\n理由：スマホの傾き・揺れを測って、まっすぐ・ぶれずに撮れたかを確かめるためです。「許可」を押してください');
       const r = await DeviceOrientationEvent.requestPermission();
       if (r !== 'granted') S.orientWarn = true;
     }
@@ -305,8 +351,11 @@ $('btnStart').onclick = async () => {
   window.addEventListener('deviceorientation', onOrient);
   window.addEventListener('devicemotion', onMotion);
   try {
+    permNow((NEED_MOTION ? '（2/2）' : '') + 'いま「カメラ」へのアクセスを聞いています。\n理由：背表紙の写真と、本の裏のバーコード（ISBN）を撮るためです。「許可」を押してください');
     await camOpen();
+    permNow('');
   } catch (e) {
+    permNow('');
     $('startErr').textContent = 'カメラを使えませんでした（' + e.name + '）。下の［標準のカメラで撮る］を使ってください';
     const b = document.createElement('button'); b.textContent = '標準のカメラで撮る'; b.onclick = () => $('fileIn').click(); $('start').appendChild(b);
     return;
@@ -316,6 +365,7 @@ $('btnStart').onclick = async () => {
   if (!ADMIN && KID.list.length > 1) $('btnKid').style.display = 'inline-block';
   if (DEBUG) $('debug').style.display = 'block';
   layout(); setTimeout(() => { if (S.beta === null) S.orientWarn = true; }, 1500);
+  setFlow(FLOW, true);
   requestAnimationFrame(loop);
 };
 
@@ -397,30 +447,35 @@ function onMotion(e) {
 }
 function tiltState() {
   if (S.beta === null) return { ok: true, msg: '', err: null };   // センサーがない：止めない（下に知らせる）
-  const err = S.beta - 90;
+  // カメラの向きの上下の傾き（縦持ち・横持ちのどちらでも）：0 ＝ まっすぐ前。マイナス ＝ 見下ろす、プラス ＝ 見上げる
+  const rad = Math.PI / 180, err = -Math.asin(Math.max(-1, Math.min(1, Math.cos(S.beta * rad) * Math.cos((S.gamma || 0) * rad)))) / rad;
   if (err < -CONFIG.TILT_MAX) return { ok: false, err, msg: '上から見下ろしています。スマホを立ててください' };
   if (err > CONFIG.TILT_MAX) return { ok: false, err, msg: '下から見上げています。スマホを少し前に倒してください' };
-  return { ok: true, err, msg: '' };
+  return { ok: true, err, msg: '', excel: Math.abs(err) <= CONFIG.EXCEL };
 }
 
 // ---------------- 枠の位置（画面）と、写真の上の位置 ----------------
-let FR = null, BOX = null;   // 画面の上の枠 {x,y,w,h}・ISBN の枠
+let FR = null, BOX = null, LAND = false;   // 画面の上の枠 {x,y,w,h}・ISBN の枠
 function layout() {
   const W = innerWidth, H = innerHeight;
   document.documentElement.style.setProperty('--bar', ($('topBar').offsetHeight || 64) + 'px');
-  const h = H * CONFIG.FRAME_H, w = W * CONFIG.FRAME_W;
-  FR = { x: (W - w) / 2, y: (H - h) / 2, w, h };
+  LAND = W > H; document.body.classList.toggle('land', LAND);
+  document.documentElement.style.setProperty('--bar', ($('topBar').offsetHeight || 64) + 'px');
+  // 縦持ち：縦長の枠。横持ち：横長の枠（寝かせた本の背表紙。本の上を左の線、下を右の線に）
+  const h = LAND ? H * 0.34 : H * CONFIG.FRAME_H, w = LAND ? W * 0.56 : W * CONFIG.FRAME_W;
+  FR = { x: (W - w) / 2, y: LAND ? Math.max(($('topBar').offsetHeight || 50) + 24, (H - h) / 2) : (H - h) / 2, w, h };
   Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
   $('sideL').style.width = $('sideR').style.width = Math.max(0, FR.x - 4) + 'px';
   // ISBN の枠：横長（バーコードは横長のため）。右上の切り替えボタンの下から
-  const bw = W * 0.9, bh = Math.min(bw * 0.42, H * 0.2), mb = $('modeBtns'), top0 = ($('topBar').offsetHeight || 64) + (mb.offsetHeight || 80) + 40;
-  BOX = { x: (W - bw) / 2, y: Math.max(top0, H * 0.28), w: bw, h: bh };
+  const bw = LAND ? W * 0.56 : W * 0.9, bh = LAND ? Math.min(bw * 0.42, H * 0.45) : Math.min(bw * 0.42, H * 0.2), top0 = ($('topBar').offsetHeight || 64) + 34;
+  BOX = { x: (W - bw) / 2, y: LAND ? Math.max(top0, (H - bh) / 2) : Math.max(top0, H * 0.28), w: bw, h: bh };
   Object.assign($('isbnBox').style, { left: BOX.x + 'px', top: BOX.y + 'px', width: BOX.w + 'px', height: BOX.h + 'px' });
   document.documentElement.style.setProperty('--boxb', Math.round(BOX.y + BOX.h) + 'px');
   const lz = $('levelZone'), L = 140, span = 30;   // 水平器：±30度を表示、緑の帯が許す範囲
   lz.style.top = (L / 2 - L / 2 * CONFIG.TILT_MAX / span) + 'px'; lz.style.height = (L * CONFIG.TILT_MAX / span) + 'px';
 }
 addEventListener('resize', () => setTimeout(layout, 200));
+addEventListener('orientationchange', () => setTimeout(layout, 400));
 // 画面の座標 → カメラの映像の座標（object-fit: cover で切れている分を考える）
 function screenToVideo(r) {
   const v = $('video'), vw = v.videoWidth, vh = v.videoHeight, W = innerWidth, H = innerHeight;
@@ -462,10 +517,14 @@ function loop(t) {
   // 色だけでなく ○（撮れる）・×（撮れない）も付ける。センサーで確かめられない項目は ?（止めない）
   const mark = (id, name, ok, unknown) => { const el = $(id), txt = name + ' ' + (unknown ? '?' : ok ? '○' : '×'); if (el.textContent !== txt) el.textContent = txt; el.classList.toggle('ok', ok); };
   mark('ckTilt', '角度', tl.ok, S.orientWarn && S.beta === null);
+  if (tl.excel && $('ckTilt').textContent !== '角度 ◎') $('ckTilt').textContent = '角度 ◎';
+  $('excel').style.display = tl.excel ? 'block' : 'none';
+  // 横に持っているのに画面が縦のまま（画面の縦向きロック）：一度だけ知らせる
+  if (!LAND && S.gamma !== null && Math.abs(S.gamma) > 65 && Math.abs(S.beta) < 30 && !S.lockWarned) { S.lockWarned = true; toast('横に持って撮るときは、画面の縦向きのロックを外してください（コントロールセンター）', 5000); }
   mark('ckSharp', 'ピント', okSharp, false);
   mark('ckStill', '揺れ', okStill, S.rot === null && t > 3000);
   mark('ckLight', '明るさ', okLight, false);
-  $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all && !ADMIN); S.all = all; $('guide').classList.toggle('ok', all);
+  $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all && !(ADMIN && FLOW === 'admin')); S.all = all; $('guide').classList.toggle('ok', all);
   S.ng = [!tl.ok && '角度', !okSharp && 'ピント', !okStill && '揺れ', !okLight && '明るさ'].filter(Boolean);
   $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
     : all ? '撮影できます' : '';
@@ -519,19 +578,25 @@ $('shutter').onclick = () => {
     if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
     toast(KID.list.length ? '写真を入れる棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
   }
-  if (!S.all && !ADMIN) {   // まだ撮れない：赤い項目を知らせる（管理者は赤があっても撮れる）
+  if (!S.all && !(ADMIN && FLOW === 'admin')) {   // まだ撮れない：赤い項目を知らせる（管理者モードは赤があっても撮れる）
     const ng = S.ng || [];
     toast(`左の赤い項目${ng.length ? '（' + ng.join('・') + '）' : ''}がすべて緑の状態で撮影できます`, 3200);
     ng.forEach(n => { const el = $({ '角度': 'ckTilt', 'ピント': 'ckSharp', '揺れ': 'ckStill', '明るさ': 'ckLight' }[n]); el.classList.remove('blink'); void el.offsetWidth; el.classList.add('blink'); });
     return;
   }
-  const v = $('video'), c = document.createElement('canvas');
+  const v = $('video'); let c = document.createElement('canvas');
   c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
-  const r = screenToVideo(FR), m = measure(c, r, 120);
+  let r = screenToVideo(FR); const m = measure(c, r, 120);
   const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);
   const tl = tiltState();
-  S.shot = { canvas: c, frame: r, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page' };
-  if (ADMIN) {   // 管理者：撮った後の確認を出さずにすぐ送る（続けて撮れる）。撮れたことは画面が一瞬白く光って知らせる
+  if (LAND) {   // 横持ち：写真を右に90度回して、背表紙を縦にして送る（枠の左＝本の上が、写真の上になる）
+    const c2 = document.createElement('canvas'); c2.width = c.height; c2.height = c.width;
+    const x2 = c2.getContext('2d'); x2.translate(c2.width, 0); x2.rotate(Math.PI / 2); x2.drawImage(c, 0, 0);
+    r = { x: c.height - (r.y + r.h), y: r.x, w: r.h, h: r.w };
+    c = c2;
+  }
+  S.shot = { canvas: c, frame: r, land: LAND, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page' };
+  if (ADMIN && FLOW === 'admin') {   // 管理者モード：撮った後の確認を出さずにすぐ送る（続けて撮れる）。撮れたことは画面が一瞬白く光って知らせる
     const shot = S.shot; S.shot = null;
     flash();
     c.toBlob(b => { shot.blob = b; enqueue(shot); }, 'image/jpeg', CONFIG.JPEG_Q);
@@ -555,6 +620,7 @@ $('btnSend').onclick = () => {
   const s = S.shot; if (!s || !s.blob) return;
   $('review').style.display = 'none'; S.shot = null;
   enqueue(s);
+  if (FLOW === 'user') setMode('isbn');   // 利用者モード：送ったら、次の本の ISBN へ
 };
 
 // 標準のカメラで撮る（枠・角度の確認なし。システムは写真の中央の本を対象にする）
@@ -565,6 +631,7 @@ $('fallback').onclick = () => {
 $('fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name });
+  if (FLOW === 'user') setMode('isbn');
 };
 
 // ---------------- ISBN のバーコードを読む（［▥ ISBN］。写真は保存しない） ----------------
@@ -576,6 +643,21 @@ $('fileIn').onchange = async e => {
 //       背表紙 → ISBN：写真を撮ってから3分以内に読んだ ISBN と組にする（続けて2枚以上撮ったときは組にしない）
 //     組にならなかった ISBN も、選書リストとして背表紙の文字と照らし合わせる
 const PAIR_MS = 3 * 60 * 1000;
+// 利用者モード（QR の施設の方。管理者も切り替えで使える）：ISBN → 読めたら自動で背表紙 → 送ったら次の ISBN …の繰り返し（1冊ずつ必ず組になる）
+// 管理者モード：今までどおり（背表紙・ISBN を自由に切り替え、確認の画面なしで続けて撮る）
+let FLOW = 'user';
+if (ADMIN) { try { FLOW = localStorage.getItem('sc_flow') === 'user' ? 'user' : 'admin'; } catch (e) { FLOW = 'admin'; } }
+function setFlow(f, first) {
+  FLOW = ADMIN ? f : 'user';
+  if (ADMIN) { try { localStorage.setItem('sc_flow', FLOW); } catch (e) {} }
+  $('flowBtns').style.display = ADMIN ? 'flex' : 'none';
+  $('btnFlowUser').classList.toggle('on', FLOW === 'user'); $('btnFlowAdmin').classList.toggle('on', FLOW === 'admin');
+  if (FLOW === 'user' && (first || IS.mode !== 'isbn')) setMode('isbn');
+  else layout();
+  if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 送る、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
+}
+$('btnFlowUser').onclick = () => setFlow('user');
+$('btnFlowAdmin').onclick = () => setFlow('admin');
 const IS = { mode: 'spine', det: null, zx: null, zxLoading: null, busy: false, lastT: 0, seen: {}, dupWarn: null, ac: null, cv: null };
 const EVK = 'sc_isbn_' + (ADMIN ? 'admin' : CODE);
 let EV = null;   // 直前の ISBN・写真と、読んだ ISBN の一覧（ページを開き直しても残す。12時間使わなければ空にする）
@@ -701,7 +783,7 @@ function isbnAdd(isbn, how) {
   const undo = { last: EV.last, isbn: EV.isbn ? Object.assign({}, EV.isbn, { undo: null }) : null, photo: EV.photo ? Object.assign({}, EV.photo) : null };
   let pair = '';
   const p = EV.photo;
-  if (EV.last === 'photo' && p && !p.paired && p.streak === 1 && now - p.at <= PAIR_MS) { pair = p.name; p.paired = true; }   // 背表紙 → ISBN
+  if (FLOW !== 'user' && EV.last === 'photo' && p && !p.paired && p.streak === 1 && now - p.at <= PAIR_MS) { pair = p.name; p.paired = true; }   // 背表紙 → ISBN（利用者モードは ISBN が先なので使わない）
   const streak = EV.last === 'isbn' && EV.isbn ? EV.isbn.streak + 1 : 1;
   EV.isbn = { id, isbn, at: now, paired: !!pair, streak, undo };
   EV.last = 'isbn';
@@ -709,13 +791,18 @@ function isbnAdd(isbn, how) {
   evSave();
   isbnSend({ how, isbn, id, pair, at });
   beep(true); boxFlash('ok');
-  isbnMsg(`${isbn}${pair ? '：直前の背表紙と組にしました' : streak > 1 ? '：まとめて読んでいます' : '：続けて背表紙を撮ると組にします（3分以内）'}`, 'ok');
+  isbnMsg(`${isbn}${pair ? '：直前の背表紙と組にしました' : FLOW === 'user' ? '：この本の背表紙を撮ってください' : streak > 1 ? '：まとめて読んでいます' : '：続けて背表紙を撮ると組にします（3分以内）'}`, 'ok');
   isbnUi();
+  if (FLOW === 'user') setTimeout(() => { if (IS.mode === 'isbn') { setMode('spine'); toast(`ISBN ${isbn}\n続けて、この本の背表紙を撮ってください`, 2500); } }, 700);   // 利用者モード：自動で背表紙へ
 }
+$('btnNoIsbn').onclick = () => {   // ISBN がない・読めない本：組にせずに背表紙を撮る
+  EV.last = 'skip'; evSave();
+  setMode('spine'); toast('ISBN なしで、この本の背表紙を撮ってください', 2500);
+};
 // 写真を撮ったとき（enqueue から）：3分以内に読んだ ISBN と組にする
 function pairPhoto(s) {
   const now = +s.at; let out = null; const q = EV.isbn;
-  if (EV.last === 'isbn' && q && !q.paired && !q.cancelled && q.streak === 1 && now - q.at <= PAIR_MS) {   // ISBN → 背表紙
+  if (EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || FLOW === 'user') && now - q.at <= PAIR_MS) {   // ISBN → 背表紙（利用者モードは、直前の ISBN と必ず組）
     q.paired = true; out = { isbn: q.isbn, id: q.id };
     const it = EV.list.find(x => x.id === q.id); if (it) it.paired = true;
   }
@@ -771,7 +858,7 @@ async function enqueue(s) {
   s.name = fileName(s);
   s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
   s.meta = { name: s.name, shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? (KID.sel.label === KID.root ? KID.root : KID.root + ' ＞ ' + KID.sel.label) : ''), source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
-    beta: s.beta, gamma: s.gamma, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '',
+    beta: s.beta, gamma: s.gamma, land: !!s.land, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '',
     // 送った人の記録（施設の QR）：端末ID・名前・所属・画面・言語・時間帯
     dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
     lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
@@ -906,7 +993,21 @@ async function pump() {
   S.busy = false; updSent(); pump();
 }
 addEventListener('online', pump);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) pump(); });   // ほかのアプリから戻ったら、続きを送る
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { pump(); setTimeout(camResume, 300); } });   // ほかのアプリから戻ったら、続きを送る・カメラを開き直す
+addEventListener('pageshow', () => setTimeout(camResume, 300));
+// 画面を消した・ほかのアプリに切り替えた後に戻ったとき：カメラが止まっていたら開き直す（開けなければ、画面に触れたときにもう一度）
+let camResuming = false;
+async function camResume() {
+  if (document.hidden || camResuming || $('cam').style.display !== 'block' || $('endBox').style.display === 'flex') return;
+  const v = $('video'), st = v.srcObject, tr = st && st.getVideoTracks()[0];
+  if (tr && tr.readyState === 'live' && !tr.muted && !v.paused && v.videoWidth) return;
+  camResuming = true;
+  try { camStop(); await camOpen(); S.prev = null; layout(); }
+  catch (e) {
+    toast('カメラを開き直せませんでした。画面に触れるともう一度開きます', 4000);
+    document.addEventListener('click', () => setTimeout(camResume, 50), { once: true });
+  } finally { camResuming = false; }
+}
 resumeUnsent();
 addEventListener('beforeunload', e => { if (S.queue.length) { e.preventDefault(); e.returnValue = ''; } });
 </script>
