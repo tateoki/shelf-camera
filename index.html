@@ -157,7 +157,7 @@
       <input id="userName" autocomplete="name" placeholder="例：山田 太郎">
       <label for="userOrg" style="font-size:13px;color:var(--sub)">追加者の所属（もしくは部署）</label>
       <input id="userOrg" autocomplete="organization" placeholder="例：〇〇株式会社 営業部">
-      <div style="font-size:12px;color:var(--sub);line-height:1.5">送った写真と一緒に、お名前・所属・端末の情報（機種・この端末の番号）を記録します。このスマホが覚えるので、次からは入力不要です。</div>
+      <div style="font-size:12px;color:var(--sub);line-height:1.5">お名前・所属は一度入力するとスマホが覚えるので、次からは入力不要です。</div>
     </div>
   </div>
   <div id="shelfBox" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px">
@@ -166,7 +166,6 @@
     <label for="shelfIn" style="font-size:13px;color:var(--sub)">棚（フォルダ）の名前（入れ子は / で区切る。空なら振り分け待ち）</label>
     <input id="shelfIn" placeholder="例：kernel-hongo__kernel本郷">
   </div>
-  <p id="permNote"></p>
   <button id="btnStart">カメラを開始</button>
   <div id="permNow"></div>
   <p id="startErr" style="color:#ff9ea1"></p>
@@ -335,10 +334,6 @@ function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.st
 // ---------------- 開始（iPhone は、角度のセンサーの許可をボタンを押したときに求める決まり） ----------------
 //   許可の画面（iPhone の標準の画面）の文言は変えられないため、聞く前の説明と、聞いている間の理由を、このページに出す
 const NEED_MOTION = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
-$('permNote').textContent = NEED_MOTION
-  ? '［カメラを開始］を押すと、許可を2回聞かれます。どちらも「許可」を押してください。\n①「動作と方向」：スマホの傾き・揺れを測って、まっすぐ・ぶれずに撮れたかを確かめるため\n②「カメラ」：背表紙と本の裏のバーコード（ISBN）を撮るため'
-  : '［カメラを開始］を押すと、カメラの許可を聞かれます（背表紙と本の裏のバーコードを撮るため）。「許可」を押してください。';
-$('permNote').style.whiteSpace = 'pre-line';
 function permNow(t) { const el = $('permNow'); el.textContent = t; el.style.whiteSpace = 'pre-line'; el.style.display = t ? 'block' : 'none'; }
 $('btnStart').onclick = async () => {
   $('startErr').textContent = '';
