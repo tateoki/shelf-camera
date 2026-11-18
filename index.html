@@ -45,11 +45,11 @@
   #hBot { top: 92%; } #hBot span { top: 4px; }
   /* 左右の暗い所（撮らない部分）：左＝棚・案内・確認・送った枚数、右＝シャッター・水平器・標準のカメラ */
   #sideL, #sideR { position: absolute; top: var(--bar, 64px); bottom: 0; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 12px) 8px calc(env(safe-area-inset-bottom) + 12px); }
-  #sideL { left: 0; gap: 12px; font-size: 13px; }
-  #sideR { right: 0; align-items: center; justify-content: center; }
+  #sideL { left: 0; top: 70px; gap: 12px; font-size: 13px; }   /* 左の確認の位置も、上のボタンの数で動かさない */
+  #sideR { right: 0; top: 0 !important; align-items: center; justify-content: center; }   /* シャッター・ズームは画面の上下の中央（上のボタンの数で動かさない） */
   #shutterWrap { position: relative; display: flex; flex-direction: column; align-items: center; }
   /* 上のバー（左右いっぱい）：棚の名前（足りなければ2行）と、右上に［棚を変える］。撮影の枠の位置は変えない（バーは暗い所に重ねる） */
-  #topBar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 6px; }
+  #topBar { position: absolute; z-index: 3; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 8px) 12px 6px; }
   #topBar #shelfName { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 0 4px rgba(0, 0, 0, .8); align-self: flex-start; padding-top: 6px; }   /* 棚の名前は上にそろえる（ボタンが2段でも1行目に出す） */
   #topBtns { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }   /* 右上：［撮影を終わる］の下に［棚を変える］（2つは同じ幅） */
   #shelfIsbn { display: none; margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--ok); text-shadow: 0 0 4px rgba(0, 0, 0, .8); }
@@ -138,7 +138,7 @@
   body.land #guide { font-size: 13px; }
   body.land #camTools { flex-direction: row; gap: 4px; top: calc(100% + 8px); }
   body.land #camTools button { width: 40px; font-size: 12px; }
-  body.land.isbn #sideL { top: var(--bar, 64px); }
+  body.land.isbn #sideL { top: 60px !important; }
   #isbnBox { position: absolute; display: none; border: 3px solid #ffd60a; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #isbnBox.ok { border-color: var(--ok); } #isbnBox.ng { border-color: var(--ng); }
   #isbnBox span { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); text-align: center; font-size: 13px; font-weight: 700; line-height: 1.4; color: #000; background: #ffd60a; padding: 3px 8px; border-radius: 4px; }
@@ -154,7 +154,7 @@
   body.isbn #frame, body.isbn #checks, body.isbn #guide, body.isbn #shutterWrap, body.isbn #fallback, body.isbn #level, body.isbn #afBox, body.isbn #excel { display: none !important; }
   body.land.isbn #isbnPanel { margin-top: auto; }
   body.isbn #isbnBox { display: block; } body.isbn #isbnPanel { display: flex; } body.isbn #sent { margin-top: auto; }
-  body.isbn #sideL { top: var(--boxb, 50%); padding-top: 10px; }   /* ISBN の枠の下から */
+  body.isbn #sideL { top: var(--boxb, 50%) !important; padding-top: 10px; }   /* ISBN の枠の下から */
   body.isbn #isbnPanel { margin-top: 0; }
   #debug { font-size: 10px; color: #999; display: none; word-break: break-all; }
 </style>
@@ -191,7 +191,7 @@
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="isbnBox"><span>本の裏のバーコード（２つある場合は上段の「978」で始まる方）を読み込んでください</span></div>
   <div id="isbnBtns"><button id="btnIsbnType">ISBNを文字入力する</button><button id="btnNoIsbn">ISBNが読めない場合はこちらをタップしてください</button></div>
-  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div><div id="seqBtns"><button id="btnSeqSeq">ISBN連続</button><button id="btnSeqBook">書籍ごと</button></div></div></div>
+  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div><div id="modeBtns"><button id="btnModeIsbn">▥ ISBN</button><button id="btnModeSpine" class="on">📷 背表紙</button></div><div id="seqBtns"><button id="btnSeqSeq">ISBN連続</button><button id="btnSeqBook">書籍ごと</button></div></div></div>
   <div id="sideL">
     <div id="checks"><span id="excel">エクセレント！</span><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
@@ -506,8 +506,9 @@ function layout() {
   $('sideL').style.width = $('sideR').style.width = Math.max(0, FR.x - 4) + 'px';
   // ISBN の枠：横長（バーコードは横長のため）。右上の切り替えボタンの下から
   //   枠の上に案内（2行）、枠の下にボタン2つ（btnH）
-  const bw = LAND ? W * 0.56 : W * 0.92, bh = LAND ? Math.min(bw * 0.3, H * 0.3) : Math.min(bw * 0.42, H * 0.2), btnH = 96, top0 = ($('topBar').offsetHeight || 64) + 52;
-  BOX = { x: (W - bw) / 2, y: LAND ? Math.max(top0, (H - bh - btnH) / 2) : Math.max(top0, H * 0.24), w: bw, h: bh };
+  //   位置は画面の大きさだけで決める（モード・上のボタンの数で動かさない）
+  const bw = LAND ? W * 0.56 : W * 0.92, bh = LAND ? Math.min(bw * 0.3, H * 0.3) : Math.min(bw * 0.42, H * 0.2), btnH = 96;
+  BOX = { x: (W - bw) / 2, y: LAND ? Math.max(96, (H - bh - btnH) / 2) : Math.max(215, H * 0.3), w: bw, h: bh };
   Object.assign($('isbnBox').style, { left: BOX.x + 'px', top: BOX.y + 'px', width: BOX.w + 'px', height: BOX.h + 'px' });
   Object.assign($('isbnBtns').style, { left: BOX.x + 'px', top: (BOX.y + BOX.h + 10) + 'px', width: BOX.w + 'px' });
   document.documentElement.style.setProperty('--boxb', Math.round(BOX.y + BOX.h + 10 + btnH) + 'px');
@@ -693,8 +694,11 @@ function setFlow(f, first) {
   if (ADMIN) { try { localStorage.setItem('sc_flow', FLOW); } catch (e) {} }
   $('flowBtns').style.display = ADMIN ? 'flex' : 'none';
   $('btnFlowUser').classList.toggle('on', FLOW === 'user'); $('btnFlowAdmin').classList.toggle('on', FLOW === 'admin');
-  $('modeBtns').style.display = FLOW === 'user' ? 'none' : 'flex';
-  $('seqBtns').style.display = FLOW === 'admin' ? 'flex' : 'none';   // 管理者モード：ISBN連続／書籍ごと
+  // ボタンの位置を変えないよう、管理者が使うページでは行を消さずに見えなくするだけ（利用者用の QR のページでは出さない）
+  $('modeBtns').style.display = ADMIN || FLOW !== 'user' ? 'flex' : 'none';
+  $('modeBtns').style.visibility = FLOW === 'user' ? 'hidden' : 'visible';
+  $('seqBtns').style.display = ADMIN ? 'flex' : 'none';   // 管理者モード：ISBN連続／書籍ごと
+  $('seqBtns').style.visibility = FLOW === 'admin' ? 'visible' : 'hidden';
   $('btnSeqSeq').classList.toggle('on', SEQ === 'seq'); $('btnSeqBook').classList.toggle('on', SEQ === 'book');
   haveUi();
   $('btnIsbnUndo').style.display = FLOW === 'user' ? 'none' : '';   // 利用者モード：［直前の ISBN を取り消す］は出さない（迷うため）   // 利用者モードは自動で切り替わるので、背表紙／ISBN のボタンは出さない
@@ -831,6 +835,7 @@ function onBarcode(raw) {
   if (!isbn) { beep(false); boxFlash('ng'); isbnMsg('本の ISBN ではありません（978・979 で始まる方のバーコードを読んでください）', 'ng'); return; }
   if (EV.list.some(x => x.isbn === isbn && !x.cancelled) && !(IS.dupWarn && IS.dupWarn.isbn === isbn && now - IS.dupWarn.at < 60000)) {
     IS.dupWarn = { isbn, at: now }; beep(false); boxFlash('ng');
+    { const d = $('isbnDone'); d.innerHTML = `もう読んだ本です<small style="color:#ff9ea1">${isbn}<br>同じ本がもう1冊あるなら、もう一度読んでください</small>`; d.style.display = 'flex'; clearTimeout(d.t); d.t = setTimeout(() => { d.style.display = 'none'; }, 1500); }
     isbnMsg(`もう読んだ本です（${isbn}）。同じ本がもう1冊あるなら、もう一度読んでください`, 'ng'); return;
   }
   IS.dupWarn = null;
@@ -860,6 +865,10 @@ function isbnAdd(isbn, how) {
     return;
   }
   if (FLOW === 'admin' && st === false && !LOOP()) isbnMsg(`${isbn}：在庫なし`, 'ok');
+  if (!LOOP()) {   // ISBN連続：読めたことを画面の真ん中に短く出す（続けて読めるよう 0.6 秒）
+    const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
+    clearTimeout(d.t); d.t = setTimeout(() => { d.style.display = 'none'; }, 600);
+  }
   if (LOOP()) {   // 利用者モード・書籍ごと：「ISBN を読み取りました」を1秒出してから、背表紙の撮影へ
     IS.hold = true;
     const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${FLOW === 'admin' && st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
@@ -909,7 +918,7 @@ async function haveLoad(force) {
     if (typeof DecompressionStream === 'undefined') throw new Error('このブラウザでは使えません');
     const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ meta: { type: 'isbn_list', key: KEY, shelf: '', dev: DEV } }) });
     const j = await res.json();
-    if (!j.ok) throw new Error(j.error || '受け取れませんでした');
+    if (!j.ok || !j.gz) throw new Error(j.error || '受け口が古い版です（v2.7 以降にしてください）');
     const bin = Uint8Array.from(atob(j.gz), c => c.charCodeAt(0));
     const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
     haveParse(text); HAVE.at = j.at; HAVE.got = Date.now();
