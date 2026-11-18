@@ -108,7 +108,18 @@
   /* ISBN のバーコードを読む（［▥ ISBN］）：写真は撮らず、横長の枠の中のバーコードを読み続ける */
   /* 切り替え（［棚を変える］の下）：背表紙／ISBN・利用者モード／管理者モード（管理者だけ） */
   #modeBtns, #flowBtns { display: flex; gap: 4px; }
-  #flowBtns { display: none; }
+  #flowBtns, #seqBtns { display: none; gap: 4px; }
+  #seqBtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 6px 6px; white-space: nowrap; background: rgba(60, 60, 60, .85); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #seqBtns button.on { background: #ffd60a; color: #000; }
+  /* 在庫あり（書籍ごと）：撮影する・しないを選ぶ */
+  #stockBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .8); align-items: center; justify-content: center; padding: 20px; }
+  #stockBox > div { background: #1c1c1e; border-radius: 14px; padding: 18px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+  #stockT { font-size: 20px; font-weight: 800; color: #ffd60a; }
+  #stockI { font-size: 15px; font-weight: 700; }
+  #stockF { font-size: 14px; line-height: 1.6; word-break: break-all; color: #ddd; }
+  #stockBox .b { display: flex; gap: 10px; margin-top: 6px; } #stockBox .b button { flex: 1; font-weight: 700; }
+  #stockBox .b .sub { background: rgba(255, 255, 255, .15); color: #fff; }
+  #haveInfo { font-size: 12px; color: var(--sub); line-height: 1.4; }
   #modeBtns button, #flowBtns button { flex: 1; font-size: 13px; font-weight: 700; padding: 7px 6px; white-space: nowrap; background: rgba(60, 60, 60, .85); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #modeBtns button.on, #flowBtns button.on { background: #fff; color: #000; }
   /* 角度が ±EXCEL 度以内：シャッターのすぐ上に1行 */
@@ -180,11 +191,11 @@
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="isbnBox"><span>本の裏のバーコード（２つある場合は上段の「978」で始まる方）を読み込んでください</span></div>
   <div id="isbnBtns"><button id="btnIsbnType">ISBNを文字入力する</button><button id="btnNoIsbn">ISBNが読めない場合はこちらをタップしてください</button></div>
-  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div></div></div>
+  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div><div id="seqBtns"><button id="btnSeqSeq">ISBN連続</button><button id="btnSeqBook">書籍ごと</button></div></div></div>
   <div id="sideL">
     <div id="checks"><span id="excel">エクセレント！</span><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
-    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button></div>
+    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><div id="haveInfo"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
@@ -206,6 +217,7 @@
 <canvas id="work"></canvas>
 <div id="toast"></div>
 <div id="isbnDone"></div>
+<div id="stockBox"><div><div id="stockT">在庫あり（シート1）</div><div id="stockI"></div><div id="stockF"></div><div class="b"><button id="btnStockShoot">撮影する</button><button id="btnStockSkip" class="sub">撮影しない</button></div></div></div>
 <div id="kidPop"><div><div style="font-weight:700;margin-bottom:10px">写真を入れる本棚</div><div id="kidList2" class="kidList"></div></div></div>
 <div id="sendBanner"><b id="sbTitle">送信中</b><br>送り終わるまで、このページを閉じないでください<br>ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）</div>
 <div id="endBox"><div id="endIn"><div id="endMsg"></div><div id="endSub"></div><div id="endBtns"></div></div></div>
@@ -380,6 +392,7 @@ $('btnStart').onclick = async () => {
   if (DEBUG) $('debug').style.display = 'block';
   layout(); setTimeout(() => { if (S.beta === null) S.orientWarn = true; }, 1500);
   setFlow(FLOW, true);
+  haveLoad();   // 管理者：在庫の一覧
   requestAnimationFrame(loop);
 };
 
@@ -616,6 +629,7 @@ $('shutter').onclick = () => {
     const shot = S.shot; S.shot = null;
     flash();
     c.toBlob(b => { shot.blob = b; enqueue(shot); }, 'image/jpeg', CONFIG.JPEG_Q);
+    if (LOOP()) setTimeout(() => setMode('isbn'), 300);   // 書籍ごと：撮ったら次の本の ISBN へ
     return;
   }
   c.toBlob(b => { S.shot.blob = b; $('reviewImg').src = URL.createObjectURL(b); }, 'image/jpeg', CONFIG.JPEG_Q);
@@ -636,7 +650,7 @@ $('btnSend').onclick = () => {
   const s = S.shot; if (!s || !s.blob) return;
   $('review').style.display = 'none'; S.shot = null;
   enqueue(s);
-  if (FLOW === 'user') setMode('isbn');   // 利用者モード：送ったら、次の本の ISBN へ
+  if (LOOP()) setMode('isbn');   // 利用者モード・書籍ごと：送ったら、次の本の ISBN へ
 };
 
 // 標準のカメラで撮る（枠・角度の確認なし。システムは写真の中央の本を対象にする）
@@ -647,7 +661,7 @@ $('fallback').onclick = () => {
 $('fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name });
-  if (FLOW === 'user') setMode('isbn');
+  if (LOOP()) setMode('isbn');
 };
 
 // ---------------- ISBN のバーコードを読む（［▥ ISBN］。写真は保存しない） ----------------
@@ -669,11 +683,26 @@ function setFlow(f, first) {
   $('flowBtns').style.display = ADMIN ? 'flex' : 'none';
   $('btnFlowUser').classList.toggle('on', FLOW === 'user'); $('btnFlowAdmin').classList.toggle('on', FLOW === 'admin');
   $('modeBtns').style.display = FLOW === 'user' ? 'none' : 'flex';
+  $('seqBtns').style.display = FLOW === 'admin' ? 'flex' : 'none';   // 管理者モード：ISBN連続／書籍ごと
+  $('btnSeqSeq').classList.toggle('on', SEQ === 'seq'); $('btnSeqBook').classList.toggle('on', SEQ === 'book');
+  haveUi();
   $('btnIsbnUndo').style.display = FLOW === 'user' ? 'none' : '';   // 利用者モード：［直前の ISBN を取り消す］は出さない（迷うため）   // 利用者モードは自動で切り替わるので、背表紙／ISBN のボタンは出さない
   if (FLOW === 'user' && (first || IS.mode !== 'isbn')) setMode('isbn');
   else layout();
   if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 送る、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
 }
+// 管理者モードの撮り方：ISBN連続（ISBN を続けて読む。今までどおり）／書籍ごと（ISBN → 背表紙 → 次の ISBN。在庫ありなら撮影する・しないを選ぶ）
+let SEQ = 'seq';
+try { SEQ = localStorage.getItem('sc_seq') === 'book' ? 'book' : 'seq'; } catch (e) {}
+const LOOP = () => FLOW === 'user' || SEQ === 'book';   // ISBN → 背表紙 → 次の ISBN の繰り返し
+function setSeq(v) {
+  SEQ = v; try { localStorage.setItem('sc_seq', v); } catch (e) {}
+  $('btnSeqSeq').classList.toggle('on', SEQ === 'seq'); $('btnSeqBook').classList.toggle('on', SEQ === 'book');
+  if (SEQ === 'book' && IS.mode !== 'isbn') setMode('isbn');
+  toast(SEQ === 'book' ? '書籍ごと：ISBN → 背表紙 → 次の ISBN（在庫ありなら撮影する・しないを選ぶ）' : 'ISBN連続：ISBN を続けて読みます', 2500);
+}
+$('btnSeqSeq').onclick = () => setSeq('seq');
+$('btnSeqBook').onclick = () => setSeq('book');
 $('btnFlowUser').onclick = () => setFlow('user');
 $('btnFlowAdmin').onclick = () => setFlow('admin');
 const IS = { mode: 'spine', det: null, zx: null, zxLoading: null, busy: false, lastT: 0, seen: {}, dupWarn: null, ac: null, cv: null };
@@ -802,7 +831,7 @@ function isbnAdd(isbn, how) {
   const undo = { last: EV.last, isbn: EV.isbn ? Object.assign({}, EV.isbn, { undo: null }) : null, photo: EV.photo ? Object.assign({}, EV.photo) : null };
   let pair = '';
   const p = EV.photo;
-  if (FLOW !== 'user' && EV.last === 'photo' && p && !p.paired && p.streak === 1 && now - p.at <= PAIR_MS) { pair = p.name; p.paired = true; }   // 背表紙 → ISBN（利用者モードは ISBN が先なので使わない）
+  if (!LOOP() && EV.last === 'photo' && p && !p.paired && p.streak === 1 && now - p.at <= PAIR_MS) { pair = p.name; p.paired = true; }   // 背表紙 → ISBN（利用者モードは ISBN が先なので使わない）
   const streak = EV.last === 'isbn' && EV.isbn ? EV.isbn.streak + 1 : 1;
   EV.isbn = { id, isbn, at: now, paired: !!pair, streak, undo };
   EV.last = 'isbn';
@@ -810,17 +839,88 @@ function isbnAdd(isbn, how) {
   evSave();
   isbnSend({ how, isbn, id, pair, at });
   beep(true); boxFlash('ok');
-  isbnMsg(`${isbn}${pair ? '：直前の背表紙と組にしました' : FLOW === 'user' ? '：この本の背表紙を撮ってください' : streak > 1 ? '：まとめて読んでいます' : '：続けて背表紙を撮ると組にします（3分以内）'}`, 'ok');
+  isbnMsg(`${isbn}${pair ? '：直前の背表紙と組にしました' : LOOP() ? '：この本の背表紙を撮ってください' : streak > 1 ? '：まとめて読んでいます' : '：続けて背表紙を撮ると組にします（3分以内）'}`, 'ok');
   isbnUi();
-  if (FLOW === 'user') {   // 利用者モード：「ISBN を読み取りました」を1秒出してから、背表紙の撮影へ
+  // 管理者モード：在庫の一覧（シート1にあり、ファイル名あり）と照らし合わせる（スマホの中の一覧なので待ち時間なし）
+  const st = FLOW === 'admin' ? haveOf(isbn) : null;   // {file, id}／false（なし）／null（一覧がない）
+  if (st) {
+    if (SEQ === 'book') { stockAsk(isbn, st); return; }   // 書籍ごと：撮影する・しないを選ぶ
+    isbnMsg(`${isbn}：在庫あり（ファイル名：${st.file}）`, 'ng');   // ISBN連続：知らせるだけ
+    return;
+  }
+  if (FLOW === 'admin' && st === false && !LOOP()) isbnMsg(`${isbn}：在庫なし`, 'ok');
+  if (LOOP()) {   // 利用者モード・書籍ごと：「ISBN を読み取りました」を1秒出してから、背表紙の撮影へ
     IS.hold = true;
-    const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}</small>`; d.style.display = 'flex';
+    const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${FLOW === 'admin' && st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
     setTimeout(() => {
       d.style.display = 'none'; IS.hold = false;
       if (IS.mode === 'isbn') { setMode('spine'); toast('この本の背表紙を撮ってください', 2200); }
     }, 1000);
   }
 }
+// ---------------- 在庫の一覧（管理者だけ。v2.7 の受け口から合言葉で受け取り、スマホに保存。12時間ごとに新しくする） ----------------
+//   中身：シート1に行があり「ファイル名」もある本の ISBN → ファイル名・独自通番（選書アプリが Google ドライブに書く ISBN_シート1.txt）
+const HAVE = { map: null, at: 0, got: 0, loading: false, err: '' };
+function haveDb() {
+  return new Promise((ok, ng) => {
+    const r = indexedDB.open('tateoki_isbn_have', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error);
+  });
+}
+async function haveKv(k, v) {
+  const db = await haveDb();
+  return new Promise((ok, ng) => {
+    const tx = db.transaction('kv', v === undefined ? 'readonly' : 'readwrite'), st = tx.objectStore('kv');
+    const r = v === undefined ? st.get(k) : st.put(v, k);
+    r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error);
+  });
+}
+function haveParse(text) {
+  const m = new Map();
+  for (const ln of text.split('\n')) { if (!ln || ln[0] === '#') continue; const a = ln.split('\t'); if (a[0]) m.set(a[0], { file: a[1] || '', id: a[2] || '' }); }
+  HAVE.map = m;
+}
+function haveOf(isbn) { return HAVE.map ? (HAVE.map.get(isbn) || false) : null; }
+function haveUi() {
+  const el = $('haveInfo'); if (!el) return;
+  if (FLOW !== 'admin') { el.textContent = ''; return; }
+  const d = HAVE.at ? new Date(HAVE.at) : null;
+  el.textContent = HAVE.loading ? '在庫の一覧を受け取っています…' : HAVE.map ? `在庫の一覧：${HAVE.map.size.toLocaleString()} 冊（${d ? (d.getMonth() + 1) + '/' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) : ''}）` + (HAVE.err ? '・更新できませんでした' : '')
+    : '在庫の一覧がありません' + (HAVE.err ? '（' + HAVE.err + '）' : '');
+}
+async function haveLoad(force) {
+  if (!ADMIN || !KEY) return;
+  if (!HAVE.map) { try { const r = await haveKv('list'); if (r && r.text) { haveParse(r.text); HAVE.at = r.at; HAVE.got = r.got || 0; } } catch (e) {} haveUi(); }
+  if (HAVE.loading || (!force && HAVE.map && Date.now() - HAVE.got < 12 * 3600e3)) return;
+  HAVE.loading = true; HAVE.err = ''; haveUi();
+  try {
+    if (typeof DecompressionStream === 'undefined') throw new Error('このブラウザでは使えません');
+    const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ meta: { type: 'isbn_list', key: KEY, shelf: '', dev: DEV } }) });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error || '受け取れませんでした');
+    const bin = Uint8Array.from(atob(j.gz), c => c.charCodeAt(0));
+    const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    haveParse(text); HAVE.at = j.at; HAVE.got = Date.now();
+    try { await haveKv('list', { text, at: j.at, got: HAVE.got }); } catch (e) {}
+  } catch (e) { HAVE.err = e.message; }
+  finally { HAVE.loading = false; haveUi(); }
+}
+$('haveInfo').onclick = () => haveLoad(true);   // 押すと今すぐ新しくする
+// 書籍ごと・在庫あり：撮影する（背表紙へ）・撮影しない（次の ISBN へ）を選ぶ。選ぶまで読まない
+function stockAsk(isbn, st) {
+  IS.hold = true;
+  $('stockI').textContent = 'ISBN：' + isbn;
+  $('stockF').innerHTML = 'ファイル名：' + esc(st.file).replace(/ \/ /g, '<br>　　　　　') + (st.id ? '<br>独自通番：' + esc(st.id) : '');
+  $('stockBox').style.display = 'flex';
+}
+$('btnStockShoot').onclick = () => { $('stockBox').style.display = 'none'; IS.hold = false; setMode('spine'); toast('この本の背表紙を撮ってください', 2200); };
+$('btnStockSkip').onclick = () => {
+  $('stockBox').style.display = 'none'; IS.hold = false;
+  if (EV.isbn) { EV.isbn.paired = true; } EV.last = 'skip'; evSave();   // この ISBN は写真と組にしない
+  isbnMsg('撮影しないで、次の本へ'); isbnUi();
+};
+
 $('btnNoIsbn').onclick = () => {   // ISBN がない・読めない本：組にせずに背表紙を撮る
   EV.last = 'skip'; evSave();
   setMode('spine'); toast('ISBN なしで、この本の背表紙を撮ってください', 2500);
@@ -828,7 +928,7 @@ $('btnNoIsbn').onclick = () => {   // ISBN がない・読めない本：組に�
 // 写真を撮ったとき（enqueue から）：3分以内に読んだ ISBN と組にする
 function pairPhoto(s) {
   const now = +s.at; let out = null; const q = EV.isbn;
-  if (EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || FLOW === 'user') && now - q.at <= PAIR_MS) {   // ISBN → 背表紙（利用者モードは、直前の ISBN と必ず組）
+  if (EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || LOOP()) && now - q.at <= PAIR_MS) {   // ISBN → 背表紙（利用者モードは、直前の ISBN と必ず組）
     q.paired = true; out = { isbn: q.isbn, id: q.id };
     const it = EV.list.find(x => x.id === q.id); if (it) it.paired = true;
   }
@@ -841,7 +941,7 @@ function pairPhoto(s) {
 // 背表紙の撮影画面：これから撮る写真と組になる ISBN（3分以内に読んで、まだ写真と組になっていない）を、棚名の下に出す
 function pendingIsbn() {
   const q = EV && EV.isbn;
-  return EV && EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || FLOW === 'user') && Date.now() - q.at <= PAIR_MS ? q.isbn : '';
+  return EV && EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || LOOP()) && Date.now() - q.at <= PAIR_MS ? q.isbn : '';
 }
 function shelfIsbnUi() {
   const i = IS.mode === 'spine' ? pendingIsbn() : '', el = $('shelfIsbn');
