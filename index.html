@@ -861,21 +861,23 @@ function isbnAdd(isbn, how) {
   const st = FLOW === 'admin' ? haveOf(isbn) : null;   // {file, id}／false（なし）／null（一覧がない）
   if (st) {
     if (SEQ === 'book') { stockAsk(isbn, st); return; }   // 書籍ごと：撮影する・しないを選ぶ
-    isbnMsg(`${isbn}：在庫あり（ファイル名：${st.file}）`, 'ng');   // ISBN連続：知らせるだけ
+    isbnMsg(`${isbn}：在庫あり（ファイル名：${st.file}）`, 'ng');   // ISBN連続：知らせるだけ（画面の真ん中に2秒）
+    const d = $('isbnDone'); d.innerHTML = `在庫あり（シート1）<small style="color:#ffd60a">${isbn}<br>ファイル名：${esc(st.file)}</small>`; d.style.display = 'flex';
+    clearTimeout(d.t); d.t = setTimeout(() => { d.style.display = 'none'; }, 2000);
     return;
   }
   if (FLOW === 'admin' && st === false && !LOOP()) isbnMsg(`${isbn}：在庫なし`, 'ok');
-  if (!LOOP()) {   // ISBN連続：読めたことを画面の真ん中に短く出す（続けて読めるよう 0.6 秒）
+  if (!LOOP()) {   // ISBN連続：読めたことを画面の真ん中に2秒出す（読むのは止めない）
     const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
-    clearTimeout(d.t); d.t = setTimeout(() => { d.style.display = 'none'; }, 600);
+    clearTimeout(d.t); d.t = setTimeout(() => { d.style.display = 'none'; }, 2000);
   }
-  if (LOOP()) {   // 利用者モード・書籍ごと：「ISBN を読み取りました」を1秒出してから、背表紙の撮影へ
+  if (LOOP()) {   // 利用者モード・書籍ごと：「ISBN を読み取りました」を2秒出してから、背表紙の撮影へ
     IS.hold = true;
     const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${FLOW === 'admin' && st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
     setTimeout(() => {
       d.style.display = 'none'; IS.hold = false;
       if (IS.mode === 'isbn') { setMode('spine'); toast('この本の背表紙を撮ってください', 2200); }
-    }, 1000);
+    }, 2000);
   }
 }
 // ---------------- 在庫の一覧（管理者だけ。v2.7 の受け口から合言葉で受け取り、スマホに保存。12時間ごとに新しくする） ----------------
