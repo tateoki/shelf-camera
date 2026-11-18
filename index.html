@@ -610,13 +610,31 @@ function setMode(m) {
 }
 $('btnModeSpine').onclick = () => setMode('spine');
 $('btnModeIsbn').onclick = () => setMode('isbn');
-// 音：ボタンを押したときに音の準備をする（iPhone は、押したときに始めないと鳴らない）
+// 音：ボタンを押したときに音の準備をする（iPhone は、押したときに実際に鳴らさないと、音を出せる状態にならない。そのため聞こえない無音を1回鳴らす）
+//   音はスマホの消音（マナーモード）に従う：マナーモードなら鳴らさず、下の「コツン」（震え）だけ
 function beepInit() {
-  try { if (!IS.ac) IS.ac = new (window.AudioContext || window.webkitAudioContext)(); if (IS.ac.state === 'suspended') IS.ac.resume(); } catch (e) {}
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'ambient';   // iPhone：消音スイッチに従う
+    if (!IS.ac) IS.ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (IS.ac.state !== 'running') IS.ac.resume();
+    const b = IS.ac.createBuffer(1, 1, 22050), src = IS.ac.createBufferSource();   // 無音（聞こえない）
+    src.buffer = b; src.connect(IS.ac.destination); src.start(0);
+  } catch (e) {}
 }
+// ほかのアプリから戻ったなどで音が止まったら、画面に触れたときに戻す
+document.addEventListener('touchend', () => { if (IS.ac && IS.ac.state !== 'running') { try { IS.ac.resume(); } catch (e) {} } }, { passive: true });
+// iPhone の震え：Safari はページから震えさせる命令（vibrate）がないため、iOS 18 以降の「スイッチ」の部品を切り替えたときの「コツン」を使う（画面には出さない）
+const HAPTIC = (() => {
+  const l = document.createElement('label'); l.setAttribute('aria-hidden', 'true');
+  l.style.cssText = 'position:fixed;left:-200px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden';
+  l.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(l); return l;
+})();
+function haptic(n) { for (let i = 0; i < n; i++) setTimeout(() => { try { HAPTIC.click(); } catch (e) {} }, i * 120); }
 function beep(ok) {
+  if (!navigator.vibrate) haptic(ok ? 1 : 3);   // iPhone：コツン（だめなときは3回）
   try {
     const ac = IS.ac; if (!ac) return;
+    if (ac.state !== 'running') ac.resume();
     const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime, d = ok ? 0.12 : 0.35;
     o.type = ok ? 'sine' : 'square'; o.frequency.value = ok ? 1760 : 330;
     g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
