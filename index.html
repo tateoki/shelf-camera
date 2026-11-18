@@ -69,7 +69,7 @@
   #checks span.blink { animation: blink .35s 3; }
   #sent { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
   #sentN { font-size: 17px; font-weight: 700; }
-  #sending { display: none; font-size: 22px; font-weight: 800; color: #000; background: #ffd60a; padding: 8px 12px; border-radius: 10px; animation: pulse 1.2s infinite; }
+  #sending { display: none; font-size: 20px; font-weight: 800; color: #000; background: #ffd60a; padding: 8px 12px; border-radius: 10px; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
   #fallback { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
   #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
@@ -99,6 +99,22 @@
   #endSub { font-size: 13px; color: var(--sub); line-height: 1.6; margin-bottom: 16px; }
   #endBtns { display: flex; flex-direction: column; gap: 10px; }
   #endBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
+  /* ISBN のバーコードを読む（［▥ ISBN］）：写真は撮らず、横長の枠の中のバーコードを読み続ける */
+  #modeBtns { position: absolute; top: 10px; right: 8px; align-items: stretch; display: flex; flex-direction: column; gap: 6px; z-index: 2; }
+  #modeBtns button { font-size: 14px; font-weight: 700; padding: 8px 10px; white-space: nowrap; background: rgba(255, 255, 255, .18); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+  #modeBtns button.on { background: #fff; color: #000; }
+  #isbnBox { position: absolute; display: none; border: 3px solid #ffd60a; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
+  #isbnBox.ok { border-color: var(--ok); } #isbnBox.ng { border-color: var(--ng); }
+  #isbnBox span { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 700; color: #000; background: #ffd60a; padding: 2px 8px; border-radius: 4px; }
+  #isbnPanel { display: none; flex-direction: column; gap: 8px; margin-top: auto; }
+  #isbnCount { font-size: 16px; font-weight: 700; line-height: 1.4; }
+  #isbnMsg { font-size: 13px; font-weight: 700; line-height: 1.45; color: #ffd60a; word-break: break-all; }
+  #isbnMsg.ok { color: var(--ok); } #isbnMsg.ng { color: #ff9ea1; }
+  #isbnPanel button { font-size: 13px; font-weight: 700; padding: 8px 10px; border-radius: 12px; line-height: 1.3; background: #fff; color: #000; }
+  body.isbn #frame, body.isbn #checks, body.isbn #guide, body.isbn #shutterWrap, body.isbn #fallback, body.isbn #level, body.isbn #afBox { display: none !important; }
+  body.isbn #isbnBox { display: block; } body.isbn #isbnPanel { display: flex; } body.isbn #sent { margin-top: auto; }
+  body.isbn #sideL { top: var(--boxb, 50%); padding-top: 10px; }   /* ISBN の枠の下から */
+  body.isbn #isbnPanel { margin-top: 0; }
   #debug { font-size: 10px; color: #999; display: none; word-break: break-all; }
 </style>
 </head>
@@ -132,14 +148,17 @@
 <div id="cam">
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
+  <div id="isbnBox"><span>本の裏のバーコード（978…）を横向きに</span></div>
   <div id="topBar"><div id="shelfName"></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button></div></div>
   <div id="sideL">
     <div id="checks"><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
+    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">数字を入れる</button></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
   <div id="sideR">
+    <div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div>
     <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
     <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
@@ -385,7 +404,7 @@ function tiltState() {
 }
 
 // ---------------- 枠の位置（画面）と、写真の上の位置 ----------------
-let FR = null;   // 画面の上の枠 {x,y,w,h}
+let FR = null, BOX = null;   // 画面の上の枠 {x,y,w,h}・ISBN の枠
 function layout() {
   const W = innerWidth, H = innerHeight;
   document.documentElement.style.setProperty('--bar', ($('topBar').offsetHeight || 64) + 'px');
@@ -393,6 +412,11 @@ function layout() {
   FR = { x: (W - w) / 2, y: (H - h) / 2, w, h };
   Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
   $('sideL').style.width = $('sideR').style.width = Math.max(0, FR.x - 4) + 'px';
+  // ISBN の枠：横長（バーコードは横長のため）。右上の切り替えボタンの下から
+  const bw = W * 0.9, bh = Math.min(bw * 0.42, H * 0.2), mb = $('modeBtns'), top0 = ($('topBar').offsetHeight || 64) + (mb.offsetHeight || 80) + 40;
+  BOX = { x: (W - bw) / 2, y: Math.max(top0, H * 0.28), w: bw, h: bh };
+  Object.assign($('isbnBox').style, { left: BOX.x + 'px', top: BOX.y + 'px', width: BOX.w + 'px', height: BOX.h + 'px' });
+  document.documentElement.style.setProperty('--boxb', Math.round(BOX.y + BOX.h) + 'px');
   const lz = $('levelZone'), L = 140, span = 30;   // 水平器：±30度を表示、緑の帯が許す範囲
   lz.style.top = (L / 2 - L / 2 * CONFIG.TILT_MAX / span) + 'px'; lz.style.height = (L * CONFIG.TILT_MAX / span) + 'px';
 }
@@ -424,6 +448,7 @@ let lastM = 0;
 function loop(t) {
   requestAnimationFrame(loop);
   const v = $('video'); if (!v.videoWidth || $('review').style.display === 'flex') return;
+  if (IS.mode === 'isbn') { isbnTick(t); return; }   // ISBN を読んでいる間は、背表紙の確認をしない
   if (t - lastM > 150) {
     lastM = t;
     const r = screenToVideo(FR), m = measure(v, r, 120);
@@ -542,6 +567,182 @@ $('fileIn').onchange = async e => {
   enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name });
 };
 
+// ---------------- ISBN のバーコードを読む（［▥ ISBN］。写真は保存しない） ----------------
+//   ・横長の枠の中を読み続け、978／979 で始まる EAN-13（書籍の ISBN）が読めたら、ピッと鳴らして（Android は震わせて）記録する
+//   ・読み方：その機種のバーコード読み取り（BarcodeDetector）があれば使い、なければ ZXing（zxing.min.js。iPhone の Safari など）
+//   ・記録は写真と同じく、スマホの保存領域に置いてから送る（途中で閉じても、次に開いたときに送る）。受け口が棚のフォルダの ISBN読み取り.csv に1行足す
+//   ・背表紙と組にする（どちらが先でもよい。3分以内）：
+//       ISBN → 背表紙：ISBN を読んでから3分以内に撮った次の写真と組にする（続けて2冊以上 ISBN を読んだときは「まとめて読んだ」とみなして組にしない）
+//       背表紙 → ISBN：写真を撮ってから3分以内に読んだ ISBN と組にする（続けて2枚以上撮ったときは組にしない）
+//     組にならなかった ISBN も、選書リストとして背表紙の文字と照らし合わせる
+const PAIR_MS = 3 * 60 * 1000;
+const IS = { mode: 'spine', det: null, zx: null, zxLoading: null, busy: false, lastT: 0, seen: {}, dupWarn: null, ac: null, cv: null };
+const EVK = 'sc_isbn_' + (ADMIN ? 'admin' : CODE);
+let EV = null;   // 直前の ISBN・写真と、読んだ ISBN の一覧（ページを開き直しても残す。12時間使わなければ空にする）
+function evLoad() {
+  try { EV = JSON.parse(localStorage.getItem(EVK) || 'null'); } catch (e) { EV = null; }
+  if (!EV || !Array.isArray(EV.list) || Date.now() - (EV.t || 0) > 12 * 3600e3) EV = { t: Date.now(), last: null, isbn: null, photo: null, list: [] };
+}
+function evSave() { EV.t = Date.now(); if (EV.list.length > 1000) EV.list = EV.list.slice(-1000); try { localStorage.setItem(EVK, JSON.stringify(EV)); } catch (e) {} }
+evLoad();
+const ck13 = s12 => { let t = 0; for (let i = 0; i < 12; i++) t += (i % 2 ? 3 : 1) * +s12[i]; return String((10 - t % 10) % 10); };
+function isbn13(v) {   // 10桁・13桁 → 13桁（チェック数字が合わなければ空）
+  let s = String(v || '').replace(/[^0-9Xx]/g, '').toUpperCase();
+  if (s.length === 10) {
+    let t = 0; for (let i = 0; i < 9; i++) t += (10 - i) * +s[i];
+    const c = s[9] === 'X' ? 10 : +s[9];
+    if (!/^\d{9}[\dX]$/.test(s) || (t + c) % 11) return '';
+    s = '978' + s.slice(0, 9); return s + ck13(s);
+  }
+  return /^97[89]\d{10}$/.test(s) && ck13(s.slice(0, 12)) === s[12] ? s : '';
+}
+function setMode(m) {
+  if (m === 'isbn' && !ADMIN && !KID.sel) {
+    if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
+    toast(KID.list.length ? '先に棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
+  }
+  IS.mode = m;
+  document.body.classList.toggle('isbn', m === 'isbn');
+  $('btnModeSpine').classList.toggle('on', m === 'spine'); $('btnModeIsbn').classList.toggle('on', m === 'isbn');
+  layout();
+  if (m === 'isbn') { beepInit(); isbnInit(); isbnUi(); }
+  else S.prev = null;
+}
+$('btnModeSpine').onclick = () => setMode('spine');
+$('btnModeIsbn').onclick = () => setMode('isbn');
+// 音：ボタンを押したときに音の準備をする（iPhone は、押したときに始めないと鳴らない）
+function beepInit() {
+  try { if (!IS.ac) IS.ac = new (window.AudioContext || window.webkitAudioContext)(); if (IS.ac.state === 'suspended') IS.ac.resume(); } catch (e) {}
+}
+function beep(ok) {
+  try {
+    const ac = IS.ac; if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime, d = ok ? 0.12 : 0.35;
+    o.type = ok ? 'sine' : 'square'; o.frequency.value = ok ? 1760 : 330;
+    g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d);
+  } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(ok ? 80 : [60, 60, 60]); } catch (e) {}
+}
+async function isbnInit() {
+  if (IS.det || IS.zx) return;
+  try {
+    if ('BarcodeDetector' in window) {
+      const f = await BarcodeDetector.getSupportedFormats();
+      if (f.includes('ean_13')) { IS.det = new BarcodeDetector({ formats: ['ean_13'] }); return; }
+    }
+  } catch (e) {}
+  if (!IS.zxLoading) IS.zxLoading = new Promise((ok, ng) => {
+    const el = document.createElement('script'); el.src = 'zxing.min.js?v=0.23.0';
+    el.onload = ok; el.onerror = () => { IS.zxLoading = null; ng(new Error('読み取りの部品を読み込めませんでした')); };
+    document.head.appendChild(el);
+  });
+  try {
+    await IS.zxLoading;
+    const Z = window.ZXing, r = new Z.MultiFormatReader();
+    r.setHints(new Map([[Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13]], [Z.DecodeHintType.TRY_HARDER, true]]));
+    IS.zx = r;
+  } catch (e) { isbnMsg(e.message + '。［数字を入れる］を使ってください', 'ng'); }
+}
+function isbnTick(t) {
+  if (IS.busy || t - IS.lastT < 120 || !BOX || (!IS.det && !IS.zx)) return;
+  IS.lastT = t; IS.busy = true;
+  isbnDecode().then(c => { if (c) onBarcode(c); }).catch(() => {}).finally(() => { IS.busy = false; });
+}
+async function isbnDecode() {
+  const v = $('video'), r = screenToVideo(BOX);
+  r.x = Math.max(0, r.x); r.y = Math.max(0, r.y); r.w = Math.min(r.w, v.videoWidth - r.x); r.h = Math.min(r.h, v.videoHeight - r.y);
+  if (r.w < 20 || r.h < 20) return '';
+  const sc = Math.min(1, 900 / r.w), w = Math.round(r.w * sc), h = Math.round(r.h * sc);
+  const c = IS.cv || (IS.cv = document.createElement('canvas')), x = c.getContext('2d', { willReadFrequently: true });
+  c.width = w; c.height = h; x.drawImage(v, r.x, r.y, r.w, r.h, 0, 0, w, h);
+  if (IS.det) { const a = await IS.det.detect(c); return a && a[0] ? a[0].rawValue : ''; }
+  const d = x.getImageData(0, 0, w, h).data, lum = new Uint8ClampedArray(w * h);
+  for (let i = 0, j = 0; j < lum.length; i += 4, j++) lum[j] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+  const Z = window.ZXing;
+  try { return IS.zx.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.RGBLuminanceSource(lum, w, h)))).getText(); }   // decode() だと、指定した種類（EAN-13）を忘れて全部の種類を試す
+  catch (e) { return ''; }
+}
+function boxFlash(cls) { const b = $('isbnBox'); b.classList.remove('ok', 'ng'); void b.offsetWidth; b.classList.add(cls); clearTimeout(boxFlash.t); boxFlash.t = setTimeout(() => b.classList.remove('ok', 'ng'), 700); }
+function isbnMsg(m, cls) { const el = $('isbnMsg'); el.textContent = m; el.className = cls || ''; }
+function onBarcode(raw) {
+  const now = Date.now(), prev = IS.seen[raw] || 0; IS.seen[raw] = now;
+  if (now - prev < 1500) return;   // 枠の中に同じバーコードが映り続けている：1回と数える（一度外して、また入れたら次の読み取り）
+  const isbn = isbn13(raw);
+  if (!isbn) { beep(false); boxFlash('ng'); isbnMsg('本の ISBN ではありません（978・979 で始まる方のバーコードを読んでください）', 'ng'); return; }
+  if (EV.list.some(x => x.isbn === isbn && !x.cancelled) && !(IS.dupWarn && IS.dupWarn.isbn === isbn && now - IS.dupWarn.at < 60000)) {
+    IS.dupWarn = { isbn, at: now }; beep(false); boxFlash('ng');
+    isbnMsg(`もう読んだ本です（${isbn}）。同じ本がもう1冊あるなら、もう一度読んでください`, 'ng'); return;
+  }
+  IS.dupWarn = null;
+  isbnAdd(isbn, 'read');
+}
+const stamp = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+function isbnAdd(isbn, how) {
+  const at = new Date(), now = +at, id = 'isbn_' + stamp(at) + '_' + Math.random().toString(36).slice(2, 6);
+  const undo = { last: EV.last, isbn: EV.isbn ? Object.assign({}, EV.isbn, { undo: null }) : null, photo: EV.photo ? Object.assign({}, EV.photo) : null };
+  let pair = '';
+  const p = EV.photo;
+  if (EV.last === 'photo' && p && !p.paired && p.streak === 1 && now - p.at <= PAIR_MS) { pair = p.name; p.paired = true; }   // 背表紙 → ISBN
+  const streak = EV.last === 'isbn' && EV.isbn ? EV.isbn.streak + 1 : 1;
+  EV.isbn = { id, isbn, at: now, paired: !!pair, streak, undo };
+  EV.last = 'isbn';
+  EV.list.push({ id, isbn, paired: !!pair });
+  evSave();
+  isbnSend({ how, isbn, id, pair, at });
+  beep(true); boxFlash('ok');
+  isbnMsg(`${isbn}${pair ? '：直前の背表紙と組にしました' : streak > 1 ? '：まとめて読んでいます' : '：続けて背表紙を撮ると組にします（3分以内）'}`, 'ok');
+  isbnUi();
+}
+// 写真を撮ったとき（enqueue から）：3分以内に読んだ ISBN と組にする
+function pairPhoto(s) {
+  const now = +s.at; let out = null; const q = EV.isbn;
+  if (EV.last === 'isbn' && q && !q.paired && !q.cancelled && q.streak === 1 && now - q.at <= PAIR_MS) {   // ISBN → 背表紙
+    q.paired = true; out = { isbn: q.isbn, id: q.id };
+    const it = EV.list.find(x => x.id === q.id); if (it) it.paired = true;
+  }
+  const streak = EV.last === 'photo' && EV.photo ? EV.photo.streak + 1 : 1;
+  EV.photo = { name: s.name, at: now, paired: !!out, streak };
+  EV.last = 'photo'; evSave(); isbnUi();
+  if (out) toast(`ISBN ${out.isbn} と組にしました`, 1500);
+  return out;
+}
+function isbnUi() {
+  const live = EV.list.filter(x => !x.cancelled), wait = live.filter(x => !x.paired).length;
+  $('isbnCount').textContent = `読んだ ISBN：${live.length}冊` + (live.length ? `\n（背表紙待ち ${wait}）` : '');
+  $('isbnCount').style.whiteSpace = 'pre-line';
+  if (!$('isbnMsg').textContent) isbnMsg(IS.det || IS.zx ? 'バーコードを枠に入れてください' : '読み取りの準備中…');
+}
+function isbnSend(o) {
+  const s = { name: o.id, gas: GAS_URL, key: ADMIN ? KEY : '', blob: null, at: o.at };
+  s.meta = { type: 'isbn', how: o.how, isbn: o.isbn, pair_photo: o.pair || '', target: o.target || '', name: o.id, taken_at: o.at.toISOString(),
+    shelf: ADMIN ? shelf : '', code: ADMIN ? '' : CODE, kid: ADMIN ? '' : (KID.sel ? KID.sel.id : ''), kid_label: ADMIN ? '' : (KID.sel ? (KID.sel.label === KID.root ? KID.root : KID.root + ' ＞ ' + KID.sel.label) : ''),
+    ua: navigator.userAgent, dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
+    lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
+  S.queue.push(s); updSent();
+  dbPut(s).then(() => { s.saved = true; }).catch(e => toast('スマホに保存できませんでした。送り終わるまでページを閉じないでください（' + e.message + '）', 4000)).finally(pump);
+}
+$('btnIsbnUndo').onclick = () => {
+  const q = EV.isbn;
+  if (!q || q.cancelled) { toast('取り消せる ISBN がありません', 2000); return; }
+  if (!confirm(`直前に読んだ ISBN（${q.isbn}）を取り消しますか？`)) return;
+  const it = EV.list.find(x => x.id === q.id); if (it) it.cancelled = true;
+  if (EV.last === 'isbn' && q.undo) { EV.last = q.undo.last; EV.isbn = q.undo.isbn; EV.photo = q.undo.photo; }   // 読む前の状態に戻す
+  else EV.isbn = null;   // 後に写真を撮っていた：その写真との組は、受け口の記録で取り消しになる
+  evSave();
+  isbnSend({ how: 'cancel', isbn: q.isbn, id: 'isbn_' + stamp(new Date()) + '_' + Math.random().toString(36).slice(2, 6), target: q.id, at: new Date() });
+  isbnMsg(`${q.isbn} を取り消しました`); isbnUi();
+};
+$('btnIsbnType').onclick = () => {
+  beepInit();
+  const v = prompt('ISBN を入れてください（10桁か13桁。ハイフンはあってもなくてもよい）');
+  if (v === null || !v.trim()) return;
+  const isbn = isbn13(v);
+  if (!isbn) { toast('ISBN の数字が正しくありません（最後のチェック数字が合いません）', 3000); return; }
+  if (EV.list.some(x => x.isbn === isbn && !x.cancelled) && !confirm(`もう読んだ本です（${isbn}）。同じ本がもう1冊ありますか？`)) return;
+  isbnAdd(isbn, 'manual');
+};
+
 // ---------------- 送る（失敗したら、つながるまで何度でも送り直す） ----------------
 const pad = n => String(n).padStart(2, '0');
 function fileName(s) {
@@ -556,6 +757,8 @@ async function enqueue(s) {
     // 送った人の記録（施設の QR）：端末ID・名前・所属・画面・言語・時間帯
     dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
     lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
+  const pr = pairPhoto(s);   // 3分以内に読んだ ISBN と組にする
+  s.meta.isbn = pr ? pr.isbn : ''; s.meta.isbn_id = pr ? pr.id : '';
   S.queue.push(s); updSent();
   try { await dbPut(s); s.saved = true; }
   catch (e) { toast('スマホに保存できませんでした。送り終わるまでページを閉じないでください（' + e.message + '）', 4000); }
@@ -586,8 +789,8 @@ async function dbTx(mode, fn) {
   });
 }
 async function dbPut(s) {
-  const buf = await s.blob.arrayBuffer();   // Blob のままだと保存できない古い iPhone があるため、中身の形で置く
-  return dbTx('readwrite', st => st.put({ name: s.name, gas: s.gas, key: s.key, meta: s.meta, type: s.blob.type || 'image/jpeg', data: buf, at: Date.now() }));
+  const buf = s.blob ? await s.blob.arrayBuffer() : null;   // Blob のままだと保存できない古い iPhone があるため、中身の形で置く（ISBN の記録は写真なし）
+  return dbTx('readwrite', st => st.put({ name: s.name, gas: s.gas, key: s.key, meta: s.meta, type: s.blob ? (s.blob.type || 'image/jpeg') : '', data: buf, at: Date.now() }));
 }
 const dbDel = name => dbTx('readwrite', st => st.delete(name)).catch(() => {});
 const dbAll = () => dbTx('readonly', st => st.getAll());
@@ -598,22 +801,29 @@ async function resumeUnsent() {
   try { rows = await dbAll(); } catch (e) { return; }
   rows = rows.filter(r => !S.queue.some(q => q.name === r.name)).sort((a, b) => a.at - b.at);
   if (!rows.length) return;
-  rows.forEach(r => S.queue.push({ name: r.name, gas: r.gas, key: r.key, meta: r.meta, blob: new Blob([r.data], { type: r.type }), saved: true, resumed: true }));
+  rows.forEach(r => S.queue.push({ name: r.name, gas: r.gas, key: r.key, meta: r.meta, blob: r.data ? new Blob([r.data], { type: r.type }) : null, saved: true, resumed: true }));
   const el = $('startLeft');
-  el.textContent = `前回送れなかった写真が ${rows.length} 枚あります。今から送ります`; el.style.display = 'block';
+  el.textContent = `前回送れなかった${qLabel()}があります。今から送ります`; el.style.display = 'block';
   updSent(); pump();
 }
+// まだ送っていないもの：写真○枚・ISBN ○件
+function qLabel() {
+  const ph = S.queue.filter(q => q.blob).length, ib = S.queue.length - ph;
+  return [ph && `写真 ${ph} 枚`, ib && `ISBN ${ib} 件`].filter(Boolean).join('・') || '0 件';
+}
 function updSent() {
-  $('sentN').textContent = `送った写真：${S.sent}枚`;
+  $('sentN').textContent = `送った写真：${S.sent}枚` + (S.isbnSent ? `\nISBN：${S.isbnSent}件` : '');
+  $('sentN').style.whiteSpace = 'pre-line';
   const n = S.queue.length, el = $('sending');
-  el.textContent = `送信中：${n}枚`; el.style.display = n ? 'block' : 'none';
-  $('sbTitle').textContent = `送信中（あと ${n} 枚）`;
+  const ph = S.queue.filter(q => q.blob).length;   // 狭い所に出すので、1行ずつ
+  el.textContent = ['送信中', ph && `写真 ${ph}枚`, n - ph && `ISBN ${n - ph}件`].filter(Boolean).join('\n'); el.style.whiteSpace = 'pre-line'; el.style.display = n ? 'block' : 'none';
+  $('sbTitle').textContent = `送信中（あと ${qLabel()}）`;
   // 上の送信中の帯は出さない（撮影の邪魔になるため。左下の黄色の「送信中：○枚」で分かる）
   $('sendBanner').style.display = 'none'; document.body.classList.remove('sending');
   if (S.ending === 'wait') endWaitUi();
   const left = $('startLeft');
   if (left.style.display === 'block' && $('start').style.display !== 'none')
-    left.textContent = n ? `前回送れなかった写真を送っています（あと ${n} 枚）` : '前回送れなかった写真を、すべて送りました';
+    left.textContent = n ? `前回送れなかった分を送っています（あと ${qLabel()}）` : '前回送れなかった分を、すべて送りました';
 }
 
 // ---------------- 撮影を終わる ----------------
@@ -622,9 +832,9 @@ $('btnEnd').onclick = () => {
   const n = S.queue.length;
   if (!n) { endDone(); return; }
   camStop(); $('cam').style.display = 'none';
-  endShow(`まだ送っていない写真が ${n} 枚あります`, '送らずに終わると、その写真は送られません',
+  endShow(`まだ送っていない${qLabel()}があります`, '送らずに終わると、それは送られません',
     [['送り終わるまで待つ', '', () => { S.ending = 'wait'; endWaitUi(); }], ['送らずに終わる', 'sub', () => {
-      if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
+      if (!confirm(`まだ送っていない${qLabel()}は送られません。終わってよいですか？`)) return;
       S.queue.length = 0; dbClear(); endDone(true);
     }], ['撮影に戻る', 'sub', camBack]]);
 };
@@ -638,9 +848,9 @@ function endHide() { S.ending = null; $('endBox').style.display = 'none'; }
 function endWaitUi() {
   const n = S.queue.length;
   if (!n) { endDone(); return; }
-  endShow(`送信中です（あと ${n} 枚）`, '送り終わるまで、このページを閉じないでください。ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）',
+  endShow(`送信中です（あと ${qLabel()}）`, '送り終わるまで、このページを閉じないでください。ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）',
     [['送らずに終わる', 'sub', () => {
-      if (!confirm(`まだ送っていない ${S.queue.length} 枚の写真は送られません。終わってよいですか？`)) return;
+      if (!confirm(`まだ送っていない${qLabel()}は送られません。終わってよいですか？`)) return;
       S.queue.length = 0; dbClear(); endDone(true);
     }], ['撮影に戻る', 'sub', camBack]]);
 }
@@ -648,7 +858,7 @@ function endDone(dropped) {
   S.ending = 'done';
   camStop();
   $('cam').style.display = 'none'; $('sendBanner').style.display = 'none'; document.body.classList.remove('sending');
-  endShow(dropped ? '撮影を終わりました' : '送り終わりました', `送った写真：${S.sent} 枚\nこのページを閉じて大丈夫です`,
+  endShow(dropped ? '撮影を終わりました' : '送り終わりました', `送った写真：${S.sent} 枚` + (S.isbnSent ? `\nISBN：${S.isbnSent} 件` : '') + `\nこのページを閉じて大丈夫です`,
     [['続けて撮影する', '', camBack]]);   // 棚はそのまま、すぐ撮影の画面に戻る
   $('endSub').style.whiteSpace = 'pre-line';
 }
@@ -659,14 +869,14 @@ async function pump() {
   const s = S.queue[0];
   try {
     const meta = Object.assign({}, s.meta, { key: s.key || '' });
-    const body = JSON.stringify({ meta, image: await b64(s.blob) });
+    const body = JSON.stringify({ meta, image: s.blob ? await b64(s.blob) : '' });   // ISBN の記録は写真なし
     // text/plain にすると、ブラウザの事前確認（CORS の preflight）なしで GAS に送れる
     const res = await fetch(s.gas || GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     const j = await res.json();
     if (!j.ok) { const er = new Error(j.error || '保存できませんでした'); er.stop = !!j.limit || !!j.blocked; er.blocked = !!j.blocked; throw er; }
     if (S.queue[0] === s) S.queue.shift();
     await dbDel(s.name);   // 送り終わったら保存領域から消す
-    S.sent++;
+    if (s.blob) S.sent++; else S.isbnSent = (S.isbnSent || 0) + 1;
   } catch (e) {
     if (e.stop) {   // 1日の上限・止められた端末：送り直さずに止める（写真はスマホに残り、次に開いたときに送る）
       toast(e.blocked ? e.message : e.message + '。撮った写真はスマホに残し、明日以降にこのページを開いたときに送ります', 6000);
