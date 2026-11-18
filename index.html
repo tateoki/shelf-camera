@@ -130,7 +130,11 @@
   body.land.isbn #sideL { top: var(--bar, 64px); }
   #isbnBox { position: absolute; display: none; border: 3px solid #ffd60a; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #isbnBox.ok { border-color: var(--ok); } #isbnBox.ng { border-color: var(--ng); }
-  #isbnBox span { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 700; color: #000; background: #ffd60a; padding: 2px 8px; border-radius: 4px; }
+  #isbnBox span { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); text-align: center; font-size: 13px; font-weight: 700; line-height: 1.4; color: #000; background: #ffd60a; padding: 3px 8px; border-radius: 4px; }
+  /* 枠の下に、同じ大きさのボタンを2つ（1行に収める） */
+  #isbnBtns { position: absolute; display: none; flex-direction: column; gap: 8px; }
+  #isbnBtns button { width: 100%; white-space: nowrap; font-size: 13px; font-weight: 700; padding: 11px 6px; border-radius: 12px; background: #fff; color: #000; }
+  body.isbn #isbnBtns { display: flex; }
   #isbnPanel { display: none; flex-direction: column; gap: 8px; margin-top: auto; }
   #isbnCount { font-size: 16px; font-weight: 700; line-height: 1.4; }
   #isbnMsg { font-size: 13px; font-weight: 700; line-height: 1.45; color: #ffd60a; word-break: break-all; }
@@ -174,12 +178,13 @@
 <div id="cam">
   <video id="video" playsinline muted autoplay></video>
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
-  <div id="isbnBox"><span>本の裏のバーコード（978…）を横向きに</span></div>
+  <div id="isbnBox"><span>本の裏のバーコード（２つある場合は上段の「978」で始まる方）を読み込んでください</span></div>
+  <div id="isbnBtns"><button id="btnIsbnType">ISBNを文字入力する</button><button id="btnNoIsbn">ISBNが読めない場合はこちらをタップしてください</button></div>
   <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="modeBtns"><button id="btnModeSpine" class="on">📷 背表紙</button><button id="btnModeIsbn">▥ ISBN</button></div><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div></div></div>
   <div id="sideL">
     <div id="checks"><span id="excel">エクセレント！</span><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
-    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button><button id="btnIsbnType">ISBNを文字入力する</button><button id="btnNoIsbn">ISBNが読めない場合はこちらをタップしてください</button></div>
+    <div id="isbnPanel"><div id="isbnCount"></div><div id="isbnMsg"></div><button id="btnIsbnUndo">直前の ISBN を取り消す</button></div>
     <div id="sent"><div id="sending"></div><div id="sentN">送った写真：0枚</div></div>
     <div id="debug"></div>
   </div>
@@ -476,10 +481,12 @@ function layout() {
   Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
   $('sideL').style.width = $('sideR').style.width = Math.max(0, FR.x - 4) + 'px';
   // ISBN の枠：横長（バーコードは横長のため）。右上の切り替えボタンの下から
-  const bw = LAND ? W * 0.56 : W * 0.9, bh = LAND ? Math.min(bw * 0.42, H * 0.45) : Math.min(bw * 0.42, H * 0.2), top0 = ($('topBar').offsetHeight || 64) + 34;
-  BOX = { x: (W - bw) / 2, y: LAND ? Math.max(top0, (H - bh) / 2) : Math.max(top0, H * 0.28), w: bw, h: bh };
+  //   枠の上に案内（2行）、枠の下にボタン2つ（btnH）
+  const bw = LAND ? W * 0.56 : W * 0.92, bh = LAND ? Math.min(bw * 0.3, H * 0.3) : Math.min(bw * 0.42, H * 0.2), btnH = 96, top0 = ($('topBar').offsetHeight || 64) + 52;
+  BOX = { x: (W - bw) / 2, y: LAND ? Math.max(top0, (H - bh - btnH) / 2) : Math.max(top0, H * 0.24), w: bw, h: bh };
   Object.assign($('isbnBox').style, { left: BOX.x + 'px', top: BOX.y + 'px', width: BOX.w + 'px', height: BOX.h + 'px' });
-  document.documentElement.style.setProperty('--boxb', Math.round(BOX.y + BOX.h) + 'px');
+  Object.assign($('isbnBtns').style, { left: BOX.x + 'px', top: (BOX.y + BOX.h + 10) + 'px', width: BOX.w + 'px' });
+  document.documentElement.style.setProperty('--boxb', Math.round(BOX.y + BOX.h + 10 + btnH) + 'px');
   const lz = $('levelZone'), L = 140, span = 30;   // 水平器：±30度を表示、緑の帯が許す範囲
   lz.style.top = (L / 2 - L / 2 * CONFIG.TILT_MAX / span) + 'px'; lz.style.height = (L * CONFIG.TILT_MAX / span) + 'px';
 }
