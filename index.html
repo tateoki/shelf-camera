@@ -137,7 +137,7 @@
   body.land #checks span { padding: 5px 12px; }
   body.land #guide { font-size: 13px; }
   body.land #camTools { flex-direction: row; gap: 4px; top: calc(100% + 8px); }
-  body.land #camTools button { width: 40px; font-size: 12px; }
+  body.land #camTools button { width: 34px; font-size: 11px; padding: 7px 0; }
   body.land.isbn #sideL { top: 60px !important; }
   #isbnBox { position: absolute; display: none; border: 3px solid #ffd60a; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .58); pointer-events: none; transition: border-color .15s; }
   #isbnBox.ok { border-color: var(--ok); } #isbnBox.ng { border-color: var(--ng); }
@@ -231,13 +231,16 @@ const CONFIG = {
   FRAME_H: 0.85,          // 枠の高さ（画面の高さに対する割合。案内・ボタンは左右の暗い所に置く）
   TILT_MAX: 5,            // 前後の傾きの許す範囲（度）。この範囲で ○（撮れる）
   EXCEL: 2,               // この範囲なら ◎ とシャッターの上に「エクセレント！」
-  SHARP_MIN: 18,          // くっきり具合の下限（枠の中のエッジの強さ。実機で調整する）
+  SHARP_MIN: 12,          // くっきり具合の下限（いちばんくっきりした縦の帯のエッジの強さ。真っ黒・真っ白・大きなぼけを止める。実機で調整する）
+  SHARP_PEAK_SEC: 3,      // 直近この秒数のいちばん良いくっきり具合を覚える
+  SHARP_PEAK_RATIO: 0.8,  // その何割以上なら ○（細い背表紙・地味な背表紙でも、ピントが合った時点で ○ になるように）
   SHARP_AFTER_RATIO: 0.6, // 撮った後：撮る前の値のこの割合より下ならぼやけとみなす
   ROT_MAX: 25,            // 揺れの上限（スマホの回る速さ・度/秒。ジャイロで測る。手で持って止めた状態で通る値）
   LIGHT_MIN: 45,          // 明るさの下限（0〜255）
   JPEG_Q: 0.9,            // 画質 90
   // ズームのボタン（表示と実際の倍率）。2倍以上はデジタルズームで画質が落ちる機種があるので、「2×」は実際は 1.9 倍
-  ZOOMS: [{ v: 1, label: '1×' }, { v: 1.25, label: '1.25×' }, { v: 1.5, label: '1.5×' }, { v: 1.9, label: '2×' }],
+  ZOOMS: [{ v: 1, label: '1×' }, { v: 1.25, label: '1.25×' }, { v: 1.5, label: '1.5×' }, { v: 1.75, label: '1.75×' }, { v: 1.9, label: '2×' }],
+  USER_ZOOM: 1.25,        // 利用者モードの最初のズーム（近づきすぎてピントが合わないのを防ぐ。選び直したら、それを使う）
   ZOOM_MAX: 1.9,          // ピンチでもここまで
 };
 const P = new URLSearchParams(location.search);
@@ -413,6 +416,7 @@ async function camOpen() {
   const v = $('video'); v.srcObject = stream; await v.play();
   await camInit(stream.getVideoTracks()[0]);
   if (CAM.zoom && CAM.caps.zoom) setZoom(CAM.zoom);   // 前に選んでいたズームに戻す
+  userZoom();
 }
 function camStop() {
   try { const st = $('video').srcObject; if (st) st.getTracks().forEach(t => t.stop()); $('video').srcObject = null; } catch (e) {}
@@ -450,7 +454,7 @@ function camTools() {
     if (z.length > 1) h += z.map(x => `<button data-zoom="${x.v}">${x.label}</button>`).join('');
   }
   box.innerHTML = h;
-  box.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => setZoom(+b.dataset.zoom));
+  box.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { CAM.zoomPicked = true; setZoom(+b.dataset.zoom); });
   zoomUi();
 }
 async function setZoom(z) {
@@ -458,6 +462,11 @@ async function setZoom(z) {
   z = Math.max(c.min, Math.min(c.max, CONFIG.ZOOM_MAX, z));
   CAM.zoom = z; zoomUi();
   try { await CAM.track.applyConstraints({ advanced: [{ zoom: z }] }); } catch (e) {}
+}
+// 利用者モード：まだズームを選んでいなければ、最初は USER_ZOOM（できる機種だけ）
+function userZoom() {
+  const c = CAM.caps.zoom;
+  if (FLOW === 'user' && !CAM.zoomPicked && c && CONFIG.USER_ZOOM >= c.min && CONFIG.USER_ZOOM <= c.max) setZoom(CONFIG.USER_ZOOM);
 }
 function zoomUi() {
   document.querySelectorAll('[data-zoom]').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.zoom - CAM.zoom) < 0.05));
@@ -467,7 +476,7 @@ let pinch = null;
 const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 addEventListener('touchstart', e => { if (e.touches.length === 2 && CAM.caps.zoom) pinch = { d: dist(e.touches), z: CAM.zoom || 1 }; }, { passive: true });
 addEventListener('touchmove', e => {
-  if (pinch && e.touches.length === 2) { const z = pinch.z * dist(e.touches) / pinch.d; if (Math.abs(z - CAM.zoom) > 0.05) setZoom(z); }
+  if (pinch && e.touches.length === 2) { const z = pinch.z * dist(e.touches) / pinch.d; if (Math.abs(z - CAM.zoom) > 0.05) { CAM.zoomPicked = true; setZoom(z); } }
 }, { passive: true });
 addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; }, { passive: true });
 
@@ -534,11 +543,17 @@ function measure(src, r, outW) {
   const d = wctx.getImageData(0, 0, w, h).data, g = new Float32Array(w * h);
   let sum = 0;
   for (let i = 0, j = 0; i < d.length; i += 4, j++) { g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; sum += g[j]; }
+  // 縦の列ごとにエッジの強さを足し、枠を縦の細い帯（幅は枠の 1/6）に分けて、いちばんくっきりした帯の値を使う
+  //   （1冊を手で持つと背表紙は枠より細く、横に後ろの景色が入る。景色のぼけで値が下がらないように）
+  const col = new Float32Array(w);
   let lap = 0, n = 0;
   for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-    const k = y * w + x; lap += Math.abs(4 * g[k] - g[k - 1] - g[k + 1] - g[k - w] - g[k + w]); n++;
+    const k = y * w + x, e = Math.abs(4 * g[k] - g[k - 1] - g[k + 1] - g[k - w] - g[k + w]); lap += e; col[x] += e; n++;
   }
-  return { sharp: lap / Math.max(n, 1), light: sum / (w * h), gray: g };
+  const bw = Math.max(4, Math.round(w / 6)), rows = Math.max(h - 2, 1);
+  let best = 0, acc = 0;
+  for (let x = 1; x < w - 1; x++) { acc += col[x]; if (x - bw >= 1) acc -= col[x - bw]; if (x >= bw) best = Math.max(best, acc / (bw * rows)); }
+  return { sharp: best || lap / Math.max(n, 1), sharpAll: lap / Math.max(n, 1), light: sum / (w * h), gray: g };
 }
 let lastM = 0;
 function loop(t) {
@@ -549,11 +564,13 @@ function loop(t) {
     lastM = t;
     const r = screenToVideo(FR), m = measure(v, r, 120);
     S.sharp = S.sharp * 0.5 + m.sharp * 0.5; S.light = m.light;
+    S.hist = (S.hist || []).filter(x => t - x.t < CONFIG.SHARP_PEAK_SEC * 1000); S.hist.push({ t, v: S.sharp });   // 直近のいちばん良い値
     if (S.prev && S.prev.length === m.gray.length) { let df = 0; for (let i = 0; i < m.gray.length; i++) df += Math.abs(m.gray[i] - S.prev[i]); S.move = S.move * 0.4 + (df / m.gray.length) * 0.6; }
     S.prev = m.gray;
   }
   const tl = tiltState();
-  const okSharp = S.sharp >= CONFIG.SHARP_MIN, okStill = S.rot === null || S.rot <= CONFIG.ROT_MAX, okLight = S.light >= CONFIG.LIGHT_MIN;
+  const peak = Math.max(0, ...(S.hist || []).map(x => x.v));
+  const okSharp = S.sharp >= Math.max(CONFIG.SHARP_MIN, peak * CONFIG.SHARP_PEAK_RATIO), okStill = S.rot === null || S.rot <= CONFIG.ROT_MAX, okLight = S.light >= CONFIG.LIGHT_MIN;
   const all = tl.ok && okSharp && okStill && okLight;
   // 色だけでなく ○（撮れる）・×（撮れない）も付ける。センサーで確かめられない項目は ?（止めない）
   const mark = (id, name, ok, unknown) => { const el = $(id), txt = name + ' ' + (unknown ? '?' : ok ? '○' : '×'); if (el.textContent !== txt) el.textContent = txt; el.classList.toggle('ok', ok); };
@@ -573,7 +590,7 @@ function loop(t) {
   const dot = $('levelDot');
   if (tl.err !== null && tl.err !== undefined) { const L = 140, span = 30, e = Math.max(-span, Math.min(span, tl.err)); dot.style.top = (L / 2 + L / 2 * e / span) + 'px'; dot.classList.toggle('ok', tl.ok); dot.style.display = 'block'; }
   else dot.style.display = 'none';
-  if (DEBUG) $('debug').textContent = `zoom ${CAM.caps.zoom ? CAM.caps.zoom.min + '-' + CAM.caps.zoom.max + ' now ' + (CAM.zoom || '-') : 'なし'} poi ${CAM.poi ? 'あり' : 'なし'} focus ${(CAM.caps.focusMode || []).join('/') || 'なし'} beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} rot ${S.rot === null ? '-' : S.rot.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
+  if (DEBUG) $('debug').textContent = `zoom ${CAM.caps.zoom ? CAM.caps.zoom.min + '-' + CAM.caps.zoom.max + ' now ' + (CAM.zoom || '-') : 'なし'} poi ${CAM.poi ? 'あり' : 'なし'} focus ${(CAM.caps.focusMode || []).join('/') || 'なし'} beta ${S.beta === null ? '-' : S.beta.toFixed(1)} gamma ${S.gamma === null ? '-' : S.gamma.toFixed(1)} sharp ${S.sharp.toFixed(1)} peak ${Math.max(0, ...(S.hist || []).map(x => x.v)).toFixed(1)} rot ${S.rot === null ? '-' : S.rot.toFixed(1)} move ${S.move.toFixed(1)} light ${S.light.toFixed(0)} video ${v.videoWidth}x${v.videoHeight}`;
 }
 // 画面をタップしたらピントを合わせ直す（できる機種だけ）
 //   1回だけのタップ（0.35秒以内にもう1回タップしなかった）のときだけ動く。ダブルタップ・続けてのタップは無視
@@ -628,7 +645,7 @@ $('shutter').onclick = () => {
   const v = $('video'); let c = document.createElement('canvas');
   c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
   let r = screenToVideo(FR); const m = measure(c, r, 120);
-  const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);
+  const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);   // 撮る前と同じ「いちばんくっきりした帯」で比べる
   const tl = tiltState();
   if (LAND) {   // 横持ち：写真を右に90度回して、背表紙を縦にして送る（枠の左＝本の上が、写真の上になる）
     const c2 = document.createElement('canvas'); c2.width = c.height; c2.height = c.width;
@@ -702,6 +719,7 @@ function setFlow(f, first) {
   $('btnSeqSeq').classList.toggle('on', SEQ === 'seq'); $('btnSeqBook').classList.toggle('on', SEQ === 'book');
   haveUi();
   $('btnIsbnUndo').style.display = FLOW === 'user' ? 'none' : '';   // 利用者モード：［直前の ISBN を取り消す］は出さない（迷うため）   // 利用者モードは自動で切り替わるので、背表紙／ISBN のボタンは出さない
+  userZoom();
   if (FLOW === 'user' && (first || IS.mode !== 'isbn')) setMode('isbn');
   else layout();
   if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 送る、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
