@@ -112,6 +112,9 @@
   #seqBtns button { flex: 1; font-size: 12px; font-weight: 700; padding: 6px 6px; white-space: nowrap; background: rgba(60, 60, 60, .85); color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
   #seqBtns button.on { background: #ffd60a; color: #000; }
   /* 在庫あり（書籍ごと）：撮影する・しないを選ぶ */
+  #isbnOk { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .8); align-items: center; justify-content: center; padding: 20px; }
+  #isbnOk > div { background: #1c1c1e; border-radius: 14px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; text-align: center; }
+  #isbnOk .b button { width: 100%; font-size: 18px; font-weight: 800; margin-top: 6px; }
   #stockBox { position: fixed; inset: 0; z-index: 8; display: none; background: rgba(0, 0, 0, .8); align-items: center; justify-content: center; padding: 20px; }
   #stockBox > div { background: #1c1c1e; border-radius: 14px; padding: 18px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
   #stockT { font-size: 20px; font-weight: 800; color: #ffd60a; }
@@ -217,6 +220,7 @@
 <canvas id="work"></canvas>
 <div id="toast"></div>
 <div id="isbnDone"></div>
+<div id="isbnOk"><div><div style="font-size:15px;font-weight:700;color:var(--ok)">✓ ISBN を読み取りました</div><div style="font-size:22px;font-weight:800;letter-spacing:.5px" id="okI"></div><div style="font-size:14px;color:#ffd60a" id="okN"></div><div style="font-size:16px;font-weight:700">これで登録します。</div><div class="b"><button id="btnIsbnOk">OK</button></div></div></div>
 <div id="stockBox"><div><div id="stockT">在庫あり（シート1）</div><div id="stockI"></div><div id="stockF"></div><div class="b"><button id="btnStockShoot">撮影する</button><button id="btnStockSkip" class="sub">撮影しない</button></div></div></div>
 <div id="kidPop"><div><div style="font-weight:700;margin-bottom:10px">写真を入れる本棚</div><div id="kidList2" class="kidList"></div></div></div>
 <div id="sendBanner"><b id="sbTitle">送信中</b><br>送り終わるまで、このページを閉じないでください<br>ほかのアプリに切り替えても大丈夫です（戻ると続きを送ります）</div>
@@ -889,15 +893,17 @@ function isbnAdd(isbn, how) {
     const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
     clearTimeout(d.t); d.t = setTimeout(() => { d.style.display = 'none'; }, 2000);
   }
-  if (LOOP()) {   // 利用者モード・書籍ごと：「ISBN を読み取りました」を2秒出してから、背表紙の撮影へ
+  if (LOOP()) {   // 利用者モード・書籍ごと：「ISBN ○○ を読み取りました。これで登録します。」→［OK］で背表紙の撮影へ（押すまで次を読まない）
     IS.hold = true;
-    const d = $('isbnDone'); d.innerHTML = `✓ ISBN を読み取りました<small>${isbn}${FLOW === 'admin' && st === false ? '（在庫なし）' : ''}</small>`; d.style.display = 'flex';
-    setTimeout(() => {
-      d.style.display = 'none'; IS.hold = false;
-      if (IS.mode === 'isbn') { setMode('spine'); toast('この本の背表紙を撮ってください', 2200); }
-    }, 2000);
+    $('okI').textContent = isbn;
+    $('okN').textContent = FLOW === 'admin' && st === false ? '（在庫なし）' : '';
+    $('isbnOk').style.display = 'flex';
   }
 }
+$('btnIsbnOk').onclick = () => {
+  $('isbnOk').style.display = 'none'; IS.hold = false;
+  if (IS.mode === 'isbn') { setMode('spine'); toast('この本の背表紙を撮ってください', 2200); }
+};
 // ---------------- 在庫の一覧（管理者だけ。v2.7 の受け口から合言葉で受け取り、スマホに保存。12時間ごとに新しくする） ----------------
 //   中身：シート1に行があり「ファイル名」もある本の ISBN → ファイル名・独自通番（選書アプリが Google ドライブに書く ISBN_シート1.txt）
 const HAVE = { map: null, at: 0, got: 0, loading: false, err: '' };
