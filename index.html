@@ -160,6 +160,22 @@
   body.isbn #sideL { top: var(--boxb, 50%) !important; padding-top: 10px; }   /* ISBN の枠の下から */
   body.isbn #isbnPanel { margin-top: 0; }
   #debug { font-size: 10px; color: #999; display: none; word-break: break-all; }
+  /* 2026-11-25 案C：管理者の切り替え（利用者／管理者・ISBN連続／書籍ごと・ISBN／背表紙／表紙）は右の列（シャッターの上）。背表紙の枠に重ねない */
+  #modeCol { position: absolute; z-index: 3; right: 8px; top: calc(var(--bar, 64px) + 6px); width: 84px; display: flex; flex-direction: column; gap: 8px; }
+  #modeCol > div { flex-direction: column; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(0, 0, 0, .55); }
+  #modeCol button { flex: none; font-size: 12px; font-weight: 700; padding: 0 4px; height: 30px; border-radius: 10px; background: transparent; color: #ddd; box-shadow: none; white-space: nowrap; }
+  #modeCol button.on { background: #fff; color: #000; }
+  #modeCol #modeBtns { margin-top: 8px; gap: 4px; padding: 4px; border-radius: 14px; }
+  #modeCol #modeBtns button { font-size: 14px; height: 40px; border-radius: 11px; color: #fff; }
+  #modeCol #modeBtns button.on { background: #ffd60a; color: #000; }
+  #modeCol.tight button { height: 26px; font-size: 11px; } #modeCol.tight #modeBtns button { height: 32px; font-size: 13px; } #modeCol.tight #modeBtns { margin-top: 2px; }
+  body.land #modeCol { flex-direction: row; width: auto; top: calc(var(--bar, 64px) + 4px); }
+  body.land #modeCol > div { flex-direction: row; } body.land #modeCol button { padding: 0 8px; } body.land #modeCol #modeBtns { margin-top: 0; }
+  /* 表紙：縦長の枠・上に案内・下に［表紙は撮らない］（利用者モード・書籍ごと） */
+  #covTip { position: absolute; display: none; z-index: 2; text-align: center; font-size: 13px; font-weight: 700; background: #ffd60a; color: #000; border-radius: 6px; padding: 3px 0; pointer-events: none; }
+  #btnNoCover { position: absolute; display: none; z-index: 3; font-size: 14px; font-weight: 700; height: 44px; padding: 0; border-radius: 22px; background: rgba(255, 255, 255, .92); color: #000; }
+  body.cover #checks span { font-size: 14px; padding: 6px 10px; } body.cover #sentN { font-size: 15px; } body.cover #guide { font-size: 13px; }
+  body.cover #covTip { display: block; } body.cover .hline { display: none; }
 </style>
 </head>
 <body>
@@ -194,7 +210,9 @@
   <div id="frame"><div class="hline" id="hTop"><span>本の上辺</span></div><div class="hline" id="hBot"><span>本の下辺</span></div></div>
   <div id="isbnBox"><span>本の裏のバーコード（２つある場合は上段の「978」で始まる方）を読み込んでください</span></div>
   <div id="isbnBtns"><button id="btnIsbnType">ISBNを文字入力する</button><button id="btnNoIsbn">ISBNが読めない場合はこちらをタップしてください</button></div>
-  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div><div id="modeBtns"><button id="btnModeIsbn">▥ ISBN</button><button id="btnModeSpine" class="on">📷 背表紙</button></div><div id="seqBtns"><button id="btnSeqSeq">ISBN連続</button><button id="btnSeqBook">書籍ごと</button></div></div></div>
+  <div id="topBar"><div id="shelfWrap" style="flex:1;min-width:0;align-self:flex-start"><div id="shelfName"></div><div id="shelfIsbn"></div></div><div id="topBtns"><button id="btnEnd">撮影を終わる</button><button id="btnKid">棚を変える</button></div></div>
+  <div id="modeCol"><div id="flowBtns"><button id="btnFlowUser" title="利用者モード">利用者</button><button id="btnFlowAdmin" title="管理者モード">管理者</button></div><div id="seqBtns"><button id="btnSeqSeq">ISBN連続</button><button id="btnSeqBook">書籍ごと</button></div><div id="modeBtns"><button id="btnModeIsbn">ISBN</button><button id="btnModeSpine" class="on">背表紙</button><button id="btnModeCover">表紙</button></div></div>
+  <div id="covTip">表紙を枠に合わせてください</div><button id="btnNoCover">表紙は撮らない</button>
   <div id="sideL">
     <div id="checks"><span id="excel">エクセレント！</span><span id="ckTilt">角度 ×</span><span id="ckSharp">ピント ×</span><span id="ckStill">揺れ ×</span><span id="ckLight">明るさ ×</span></div>
     <div id="guide">準備中…</div>
@@ -500,6 +518,11 @@ function tiltState() {
   if (S.beta === null) return { ok: true, msg: '', err: null };   // センサーがない：止めない（下に知らせる）
   // カメラの向きの上下の傾き（縦持ち・横持ちのどちらでも）：0 ＝ まっすぐ前。マイナス ＝ 見下ろす、プラス ＝ 見上げる
   const rad = Math.PI / 180, err = -Math.asin(Math.max(-1, Math.min(1, Math.cos(S.beta * rad) * Math.cos((S.gamma || 0) * rad)))) / rad;
+  if (IS.mode === 'cover') {   // 表紙：正面（0度）か真上（-90度）のどちらかに近ければ ○
+    const e2 = err < -45 ? err + 90 : err;
+    if (Math.abs(e2) > CONFIG.TILT_MAX) return { ok: false, err: e2, msg: err < -45 ? '真上から撮るときは、スマホを机と平らにしてください' : '表紙のまっすぐ正面から撮ってください（机に置いて真上からでも撮れます）' };
+    return { ok: true, err: e2, msg: '', excel: Math.abs(e2) <= CONFIG.EXCEL, top: err < -45 };
+  }
   if (err < -CONFIG.TILT_MAX) return { ok: false, err, msg: '上から見下ろしています。スマホを立ててください' };
   if (err > CONFIG.TILT_MAX) return { ok: false, err, msg: '下から見上げています。スマホを少し前に倒してください' };
   return { ok: true, err, msg: '', excel: Math.abs(err) <= CONFIG.EXCEL };
@@ -514,14 +537,23 @@ function layout() {
   document.documentElement.style.setProperty('--bar', ($('topBar').offsetHeight || 64) + 'px');
   // 縦持ち：縦長の枠。横持ち：横長の枠（寝かせた本の背表紙。本の上を左の線、下を右の線に）
   const h = LAND ? H * 0.34 : H * CONFIG.FRAME_H, w = LAND ? W * 0.56 : W * CONFIG.FRAME_W;
-  FR = { x: (W - w) / 2, y: LAND ? Math.max(($('topBar').offsetHeight || 50) + 24, (H - h) / 2) : (H - h) / 2, w, h };
+  const mcH = LAND && $('modeCol').offsetHeight ? $('modeCol').offsetHeight + 8 : 0;   // 横持ち：右の列は上に横に並ぶ
+  FR = { x: (W - w) / 2, y: LAND ? Math.max(($('topBar').offsetHeight || 50) + 24 + mcH, (H - h) / 2) : (H - h) / 2, w, h };
+  if (IS.mode === 'cover') {   // 表紙：縦長の四角（表紙の形。横持ちでも縦長のまま・写真は回さない）
+    const cw = LAND ? Math.min(W * 0.3, H * 0.62 / 1.42) : W * 0.45, ch = cw * 1.42;
+    FR = { x: (W - cw) / 2, y: LAND ? Math.max(($('topBar').offsetHeight || 50) + 24 + mcH, (H - ch) / 2) : (H - ch) / 2, w: cw, h: ch };
+  }
+  Object.assign($('covTip').style, { left: FR.x + 'px', width: FR.w + 'px', top: (FR.y - 30) + 'px' });
+  Object.assign($('btnNoCover').style, { left: FR.x + 'px', width: FR.w + 'px', top: (FR.y + FR.h + 14) + 'px' });
+  { const mc = $('modeCol'); mc.classList.remove('tight'); if (!LAND && mc.offsetHeight && mc.offsetTop + mc.offsetHeight > H / 2 - 37 - 8) mc.classList.add('tight'); }   // シャッター（画面の上下の中央）に届く：詰める
   Object.assign($('frame').style, { left: FR.x + 'px', top: FR.y + 'px', width: FR.w + 'px', height: FR.h + 'px' });
-  $('sideL').style.width = $('sideR').style.width = Math.max(0, FR.x - 4) + 'px';
+  { const sw = Math.max(0, (W - (LAND ? W * 0.56 : W * CONFIG.FRAME_W)) / 2 - 4); $('sideL').style.width = Math.max(0, FR.x - 4) + 'px'; $('sideR').style.width = sw + 'px'; }
   // ISBN の枠：横長（バーコードは横長のため）。右上の切り替えボタンの下から
   //   枠の上に案内（2行）、枠の下にボタン2つ（btnH）
   //   位置は画面の大きさだけで決める（モード・上のボタンの数で動かさない）
   const bw = LAND ? W * 0.56 : W * 0.92, bh = LAND ? Math.min(bw * 0.3, H * 0.3) : Math.min(bw * 0.42, H * 0.2), btnH = 96;
-  BOX = { x: (W - bw) / 2, y: LAND ? Math.max(96, (H - bh - btnH) / 2) : Math.max(215, H * 0.3), w: bw, h: bh };
+  const bAdm = ADMIN && !LAND, bw2 = bAdm ? W - 112 : bw;   // 管理者のページ（縦持ち）：右の列に重ならないよう左に寄せて細く
+  BOX = { x: bAdm ? 12 : (W - bw) / 2, y: LAND ? Math.max(96, (H - bh - btnH) / 2) : Math.max(215, H * 0.3), w: bw2, h: bh };
   Object.assign($('isbnBox').style, { left: BOX.x + 'px', top: BOX.y + 'px', width: BOX.w + 'px', height: BOX.h + 'px' });
   Object.assign($('isbnBtns').style, { left: BOX.x + 'px', top: (BOX.y + BOX.h + 10) + 'px', width: BOX.w + 'px' });
   document.documentElement.style.setProperty('--boxb', Math.round(BOX.y + BOX.h + 10 + btnH) + 'px');
@@ -588,7 +620,7 @@ function loop(t) {
   mark('ckLight', '明るさ', okLight, false);
   $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all && !(ADMIN && FLOW === 'admin')); S.all = all; $('guide').classList.toggle('ok', all);
   S.ng = [!tl.ok && '角度', !okSharp && 'ピント', !okStill && '揺れ', !okLight && '明るさ'].filter(Boolean);
-  $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。背表紙を画面でタップするか、少し離れてください'
+  $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。' + (IS.mode === 'cover' ? '表紙' : '背表紙') + 'を画面でタップするか、少し離れてください'
     : all ? '撮影できます' : '';
   // 水平器
   const dot = $('levelDot');
@@ -651,22 +683,22 @@ $('shutter').onclick = () => {
   let r = screenToVideo(FR); const m = measure(c, r, 120);
   const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);   // 撮る前と同じ「いちばんくっきりした帯」で比べる
   const tl = tiltState();
-  if (LAND) {   // 横持ち：写真を右に90度回して、背表紙を縦にして送る（枠の左＝本の上が、写真の上になる）
+  if (LAND && IS.mode !== 'cover') {   // 横持ち：写真を右に90度回して、背表紙を縦にして送る（枠の左＝本の上が、写真の上になる）
     const c2 = document.createElement('canvas'); c2.width = c.height; c2.height = c.width;
     const x2 = c2.getContext('2d'); x2.translate(c2.width, 0); x2.rotate(Math.PI / 2); x2.drawImage(c, 0, 0);
     r = { x: c.height - (r.y + r.h), y: r.x, w: r.h, h: r.w };
     c = c2;
   }
-  S.shot = { canvas: c, frame: r, land: LAND, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page' };
+  S.shot = { canvas: c, frame: r, land: LAND, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page', kind: IS.mode === 'cover' ? 'cover' : 'spine' };
   if (ADMIN && FLOW === 'admin') {   // 管理者モード：撮った後の確認を出さずにすぐ送る（続けて撮れる）。撮れたことは画面が一瞬白く光って知らせる
     const shot = S.shot; S.shot = null;
     flash();
     c.toBlob(b => { shot.blob = b; enqueue(shot); }, 'image/jpeg', CONFIG.JPEG_Q);
-    if (LOOP()) setTimeout(() => setMode('isbn'), 300);   // 書籍ごと：撮ったら次の本の ISBN へ
+    if (LOOP()) { const nx = nextMode(shot.kind); setTimeout(() => goNext(nx), 300); }   // 書籍ごと：背表紙 → 表紙 → 次の本の ISBN
     return;
   }
   c.toBlob(b => { S.shot.blob = b; $('reviewImg').src = URL.createObjectURL(b); }, 'image/jpeg', CONFIG.JPEG_Q);
-  $('reviewMsg').textContent = blurred ? 'ぼやけています。撮り直してください' : '背表紙が枠に上から下まで入っていますか？';
+  $('reviewMsg').textContent = blurred ? 'ぼやけています。撮り直してください' : (S.shot.kind === 'cover' ? '表紙が枠に入っていますか？' : '背表紙が枠に上から下まで入っていますか？');
   $('reviewMsg').className = blurred ? 'ng' : '';
   $('btnSend').textContent = blurred ? 'このまま送る' : '送る';
   $('btnSend').className = blurred ? 'sub' : ''; $('btnRetake').className = blurred ? '' : 'sub';
@@ -683,9 +715,13 @@ $('btnSend').onclick = () => {
   const s = S.shot; if (!s || !s.blob) return;
   $('review').style.display = 'none'; S.shot = null;
   enqueue(s);
-  if (LOOP()) setMode('isbn');   // 利用者モード・書籍ごと：送ったら、次の本の ISBN へ
+  if (LOOP()) goNext(nextMode(s.kind));   // 利用者モード・書籍ごと：背表紙 → 表紙 → 次の本の ISBN
 };
 
+// 次に撮るもの：背表紙の次は表紙、表紙の次は次の本の ISBN（利用者モード・書籍ごと）
+function nextMode(kind) { return (kind || IS.mode) === 'spine' ? 'cover' : 'isbn'; }
+function goNext(m) { setMode(m); if (m === 'cover') toast('この本の表紙を撮ってください', 2200); }
+$('btnNoCover').onclick = () => { if (LOOP()) { setMode('isbn'); toast('表紙は撮らずに、次の本へ', 2000); } };
 // 標準のカメラで撮る（枠・角度の確認なし。システムは写真の中央の本を対象にする）
 $('fallback').onclick = () => {
   if (CODE && !KID.sel) { if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; } toast('写真を入れる棚を選んでください'); return; }
@@ -693,8 +729,9 @@ $('fallback').onclick = () => {
 };
 $('fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-  enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name });
-  if (LOOP()) setMode('isbn');
+  const kind = IS.mode === 'cover' ? 'cover' : 'spine';
+  enqueue({ blob: f, frame: null, at: new Date(), source: 'camera', name0: f.name, kind });
+  if (LOOP()) goNext(nextMode(kind));
 };
 
 // ---------------- ISBN のバーコードを読む（［▥ ISBN］。写真は保存しない） ----------------
@@ -726,7 +763,7 @@ function setFlow(f, first) {
   userZoom();
   if (FLOW === 'user' && (first || IS.mode !== 'isbn')) setMode('isbn');
   else layout();
-  if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 送る、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
+  if (!first) toast(FLOW === 'user' ? '利用者モード：ISBN → 背表紙 → 表紙、の繰り返しです' : '管理者モード：確認の画面なしで続けて撮れます', 2500);
 }
 // 管理者モードの撮り方：ISBN連続（ISBN を続けて読む。今までどおり）／書籍ごと（ISBN → 背表紙 → 次の ISBN。在庫ありなら撮影する・しないを選ぶ）
 let SEQ = 'seq';
@@ -736,7 +773,7 @@ function setSeq(v) {
   SEQ = v; try { localStorage.setItem('sc_seq', v); } catch (e) {}
   $('btnSeqSeq').classList.toggle('on', SEQ === 'seq'); $('btnSeqBook').classList.toggle('on', SEQ === 'book');
   if (SEQ === 'book' && IS.mode !== 'isbn') setMode('isbn');
-  toast(SEQ === 'book' ? '書籍ごと：ISBN → 背表紙 → 次の ISBN（在庫ありなら撮影する・しないを選ぶ）' : 'ISBN連続：ISBN を続けて読みます', 2500);
+  toast(SEQ === 'book' ? '書籍ごと：ISBN → 背表紙 → 表紙 → 次の ISBN（在庫ありなら撮影する・しないを選ぶ）' : 'ISBN連続：ISBN を続けて読みます', 2500);
 }
 $('btnSeqSeq').onclick = () => setSeq('seq');
 $('btnSeqBook').onclick = () => setSeq('book');
@@ -768,8 +805,9 @@ function setMode(m) {
     toast(KID.list.length ? '先に棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
   }
   IS.mode = m;
-  document.body.classList.toggle('isbn', m === 'isbn');
-  $('btnModeSpine').classList.toggle('on', m === 'spine'); $('btnModeIsbn').classList.toggle('on', m === 'isbn');
+  document.body.classList.toggle('isbn', m === 'isbn'); document.body.classList.toggle('cover', m === 'cover');
+  $('btnModeSpine').classList.toggle('on', m === 'spine'); $('btnModeIsbn').classList.toggle('on', m === 'isbn'); $('btnModeCover').classList.toggle('on', m === 'cover');
+  $('btnNoCover').style.display = m === 'cover' && LOOP() ? 'block' : 'none';
   layout();
   if (m === 'isbn') { beepInit(); isbnInit(); isbnUi(); }
   else S.prev = null;
@@ -777,6 +815,7 @@ function setMode(m) {
 }
 $('btnModeSpine').onclick = () => setMode('spine');
 $('btnModeIsbn').onclick = () => setMode('isbn');
+$('btnModeCover').onclick = () => setMode('cover');
 // 音：ボタンを押したときに音の準備をする（iPhone は、押したときに実際に鳴らさないと、音を出せる状態にならない。そのため聞こえない無音を1回鳴らす）
 //   音はスマホの消音（マナーモード）に従う：マナーモードなら鳴らさず、下の「コツン」（震え）だけ
 function beepInit() {
@@ -984,13 +1023,21 @@ function pairPhoto(s) {
   if (out) toast(`ISBN ${out.isbn} と組にしました`, 1500);
   return out;
 }
+// 表紙：利用者モード・書籍ごとは、今の本の ISBN（背表紙を撮った本）と組にする。ISBN連続は組にしない（選書アプリの束で並べる）
+function pairCover(s) {
+  const q = EV.isbn;
+  if (!LOOP() || !q || q.cancelled || +s.at - q.at > PAIR_MS * 2) return null;
+  if (q.coverDone) return null;
+  q.coverDone = true; evSave();
+  return { isbn: q.isbn, id: q.id };
+}
 // 背表紙の撮影画面：これから撮る写真と組になる ISBN（3分以内に読んで、まだ写真と組になっていない）を、棚名の下に出す
 function pendingIsbn() {
   const q = EV && EV.isbn;
   return EV && EV.last === 'isbn' && q && !q.paired && !q.cancelled && (q.streak === 1 || LOOP()) && Date.now() - q.at <= PAIR_MS ? q.isbn : '';
 }
 function shelfIsbnUi() {
-  const i = IS.mode === 'spine' ? pendingIsbn() : '', el = $('shelfIsbn');
+  const q = EV && EV.isbn, i = IS.mode === 'spine' ? pendingIsbn() : IS.mode === 'cover' && LOOP() && q && !q.cancelled && !q.coverDone ? q.isbn : '', el = $('shelfIsbn');
   el.textContent = i ? 'ISBN：' + i : ''; el.style.display = i ? 'block' : 'none';
 }
 setInterval(() => { if ($('cam').style.display === 'block') shelfIsbnUi(); }, 5000);   // 3分を過ぎたら消す
@@ -1034,17 +1081,17 @@ $('btnIsbnType').onclick = () => {
 const pad = n => String(n).padStart(2, '0');
 function fileName(s) {
   const d = s.at, r = Math.random().toString(36).slice(2, 6);
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${r}.jpg`;
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${r}${s.kind === 'cover' ? '_c' : ''}.jpg`;
 }
 async function enqueue(s) {
   s.name = fileName(s);
   s.gas = GAS_URL; s.key = ADMIN ? KEY : '';
-  s.meta = { name: s.name, shelf: CODE ? '' : shelf, code: CODE, kid: CODE ? kidId() : '', kid_label: CODE && KID.sel ? KID.sel.label : '', source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
+  s.meta = { name: s.name, kind: s.kind === 'cover' ? 'cover' : 'spine', shelf: CODE ? '' : shelf, code: CODE, kid: CODE ? kidId() : '', kid_label: CODE && KID.sel ? KID.sel.label : '', source: s.source, taken_at: s.at.toISOString(), frame: s.frame, sharp: s.sharp, sharp_live: s.sharp_live, light: s.light,
     beta: s.beta, gamma: s.gamma, land: !!s.land, blurred: !!s.blurred, tilt_max: CONFIG.TILT_MAX, ua: navigator.userAgent, original_name: s.name0 || '',
     // 送った人の記録（施設の QR）：端末ID・名前・所属・画面・言語・時間帯
     dev: DEV, user_name: ADMIN ? '' : USER.name, user_org: ADMIN ? '' : USER.org, screen: screen.width + 'x' + screen.height + '@' + (devicePixelRatio || 1),
     lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
-  const pr = pairPhoto(s);   // 3分以内に読んだ ISBN と組にする
+  const pr = s.kind === 'cover' ? pairCover(s) : pairPhoto(s);   // 3分以内に読んだ ISBN と組にする（表紙：利用者モード・書籍ごとは今の本の ISBN と）
   s.meta.isbn = pr ? pr.isbn : ''; s.meta.isbn_id = pr ? pr.id : '';
   S.queue.push(s); updSent();
   try { await dbPut(s); s.saved = true; }
