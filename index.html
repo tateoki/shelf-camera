@@ -346,6 +346,14 @@ function jsonp(url, ms = 25000) {
     document.head.appendChild(el);
   });
 }
+// 受け口に聞く：まず JSONP（iPhone の Safari 向け）。だめなら fetch で聞き直す（Android の Chrome は JSONP の読み込みを止めることがある。2026-11-27 確かめのページで、JSONP はだめ・fetch は OK）
+async function gasGet(url) {
+  try { return await jsonp(url); }
+  catch (e1) {
+    try { const r = await fetch(url, { redirect: 'follow' }); if (!r.ok) throw new Error('状態 ' + r.status); return await r.json(); }
+    catch (e2) { throw new Error(e1.message + '／' + e2.message); }
+  }
+}
 // 施設の棚：待たせないように
 //   ・QR の n（棚の名前）はすぐ表示する。d=1（配下の棚がない）なら、そのカテゴリ自体に入れるので読み込まない
 //   ・前回読んだ棚の一覧（スマホが覚えている）をすぐ出し、裏で最新の一覧を読み直す
@@ -381,7 +389,7 @@ async function loadKids() {
   else if (P.get('d') === '1' && name) {}
   else { KID.root = name; $('kidTitle').textContent = name ? name + ' の' : ''; $('kidList').innerHTML = '<div style="font-size:13px;color:var(--sub)">棚を読み込んでいます…（先にカメラを開始しても大丈夫です）</div>'; }
   try {
-    const j = await jsonp(GAS_URL + '?code=' + encodeURIComponent(CODE) + '&dev=' + encodeURIComponent(DEV) + '&name=' + encodeURIComponent(USER.name));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
+    const j = await gasGet(GAS_URL + '?code=' + encodeURIComponent(CODE) + '&dev=' + encodeURIComponent(DEV) + '&name=' + encodeURIComponent(USER.name));   // 受け口へは code（c は Apps Script が使う名前のため使えない）
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
     KID.left = j.left;
     try { localStorage.setItem('sc_kids_' + CODE, JSON.stringify({ name: j.name, list: j.kids || [] })); } catch (e) {}
