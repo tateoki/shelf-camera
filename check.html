@@ -32,6 +32,8 @@ function jsonp(url, ms = 25000) {
 async function run() {
   out.innerHTML = ''; log = [];
   const info = ['日時：' + new Date().toLocaleString(), 'ブラウザ：' + navigator.userAgent, '撮影コード：' + CODE, 'ページ：' + location.href];
+  let ic = ''; try { ic = localStorage.getItem('sc_ic_off') || ''; } catch (e) {}   // 撮影ページが覚えている：写真モードで撮った後に映像が止まった端末か
+  info.push('撮る写真：' + (ic ? '動画の1こま（写真モードは使わない：' + ic + '）' : (typeof ImageCapture !== 'undefined' ? 'カメラの写真モード' : '動画の1こま（この端末は写真モードがない）')));
   const d = document.createElement('div'); d.className = 'r'; d.textContent = info.join('\n'); out.appendChild(d); log.push(...info);
   for (const [title, url] of [['1. 受け口の版（JSONP）', GAS], ['2. 棚の一覧（JSONP・撮影ページと同じ）', GAS + '?code=' + encodeURIComponent(CODE) + '&dev=check']]) {
     const f = row(title), t0 = Date.now();
