@@ -489,7 +489,8 @@ $('kidPop').onclick = e => { if (e.target.id === 'kidPop') $('kidPop').style.dis
 //     ダブルタップ（シャッターを続けて押すときなど）ではピントを動かさない
 //   ・ズーム：1×・1.25×・1.5×・2×（実際は 1.9 倍）のボタンとピンチ（2本指。1.9 倍まで）
 const CAM = { track: null, caps: {}, zoom: null, poi: false, afLock: null };
-try { CAM.icOff = localStorage.getItem('sc_ic_off') || ''; } catch (e) {}   // 写真モードで撮ると映像が止まる機種（前に止まった）：写真モードを使わない
+// 写真モード（2026-11-27 しげお決定）：映像が止まる機種でも写真モードで撮り、撮った後にカメラを開き直す
+//   前の版が端末に覚えさせた sc_ic_off（写真モードを使わない）は読まない。消さずに残す（前の版に戻したときに、前と同じ動きになるように）
 // カメラの映像が止まったら開き直す（Android で写真モードで撮った後に映像が止まる・真っ暗になる機種がある。2026-11-27）
 //   2秒ごとに、動画の時刻が進んでいるかを見る。止まっていたら（2回続けて）開き直す
 const CAMW = { last: -1, still: 0, busy: false };
@@ -726,10 +727,10 @@ async function grabStill() {
     try {
       const ic = CAM.ic && CAM.icTrack === CAM.track ? CAM.ic : (CAM.ic = new ImageCapture(CAM.track), CAM.icTrack = CAM.track, CAM.ic);
       const t0 = $('video').currentTime;
-      const blob = await ic.takePhoto();
-      setTimeout(() => {   // 写真モードで撮った後に映像が止まった機種：この後は写真モードを使わず、カメラを開き直す
-        if (!camAlive() || $('video').currentTime === t0) { CAM.icOff = 'freeze'; try { localStorage.setItem('sc_ic_off', 'freeze'); } catch (e) {} camReopen('写真モードの後'); }
-      }, 1500);
+      const blob = await Promise.race([ic.takePhoto(), new Promise((_, ng) => setTimeout(() => ng(new Error('写真モードで撮れませんでした（時間切れ）')), 8000))]);
+      setTimeout(() => {   // 写真モードで撮った後に映像が止まった機種：写真モードのまま、カメラを開き直す
+        if (!camAlive() || $('video').currentTime === t0) camReopen('写真モードの後');
+      }, 800);
       const bm = await createImageBitmap(blob, { imageOrientation: 'from-image' });
       if ((bm.width < bm.height) === (vw < vh) && bm.width > vw * 0.9) {   // 向きが同じで、動画より大きいときだけ使う
         const c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
@@ -737,7 +738,7 @@ async function grabStill() {
         return { c, map: r => ({ x: Math.round(r.x * sc + (bm.width - vw * sc) / 2), y: Math.round(r.y * sc + (bm.height - vh * sc) / 2), w: Math.round(r.w * sc), h: Math.round(r.h * sc) }), still: true };
       }
       CAM.icOff = 'size';   // 向き・大きさが合わない機種：この後は動画の1こまで撮る
-    } catch (e) { CAM.icOff = String(e && e.message || e); }
+    } catch (e) { CAM.icOff = String(e && e.message || e); if (!camAlive()) camReopen('写真モードで撮れなかった'); }   // この回だけ：ページを開き直せば、また写真モードを試す
   }
   const c = document.createElement('canvas'); c.width = vw; c.height = vh; c.getContext('2d').drawImage(v, 0, 0);
   return { c, map: r => r, still: false };
@@ -1204,6 +1205,9 @@ async function enqueue(s) {
     lang: navigator.language || '', tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '') };
   const pr = s.source === 'library' ? null : s.kind === 'cover' ? pairCover(s) : pairPhoto(s);   // 3分以内に読んだ ISBN と組にする（表紙：利用者モード・書籍ごとは今の本の ISBN と）
   s.meta.isbn = pr ? pr.isbn : ''; s.meta.isbn_id = pr ? pr.id : '';
+  // どちらで撮ったか（photo：カメラの写真モード／video：動画の1こま／library：まとめて送った写真）と写真の大きさ
+  s.meta.photo_mode = s.source === 'library' ? 'library' : s.still ? 'photo' : 'video';
+  if (s.canvas) s.meta.photo_size = s.canvas.width + 'x' + s.canvas.height;
   S.queue.push(s); updSent();
   try { await dbPut(s); s.saved = true; }
   catch (e) { toast('スマホに保存できませんでした。送り終わるまでページを閉じないでください（' + e.message + '）', 4000); }
