@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>撮影ページの受け口の確かめ</title>
+<style>
+body{font-family:sans-serif;margin:16px;background:#111;color:#eee;font-size:15px}
+h1{font-size:18px}.r{margin:10px 0;padding:10px;border-radius:8px;background:#222;word-break:break-all;white-space:pre-wrap}
+.ok{border-left:6px solid #3c3}.ng{border-left:6px solid #e44}.wait{border-left:6px solid #888}
+button{font-size:16px;padding:10px 16px;margin:6px 6px 0 0;border-radius:8px;border:0;background:#fff;color:#111}
+</style></head><body>
+<h1>撮影ページの受け口の確かめ</h1>
+<div>このページは、撮影ページが受け口（GAS）に問い合わせられるかを確かめるだけのページです。写真は送りません。</div>
+<div id="out"></div>
+<button id="again">もう一度確かめる</button><button id="copy">結果をコピー</button>
+<script>
+// 撮影ページ（index.html）と同じ受け口・同じ問い合わせ方（JSONP）で確かめる。あわせて fetch でも聞き、返ってきた中身の先頭を出す
+const GAS = 'https://script.google.com/macros/s/AKfycbwjLMBAuYXmrCRprISEhkbh5Pdf1ccbeGh-RJh7o6_4QxjTNId9usnozvGE0NEDiCAwag/exec';
+const P = new URLSearchParams(location.search), CODE = P.get('code') || P.get('c') || 'wzjpqNXv';
+const out = document.getElementById('out'); let log = [];
+function row(title) { const d = document.createElement('div'); d.className = 'r wait'; d.textContent = title + '：確かめています…'; out.appendChild(d);
+  return (ok, msg) => { d.className = 'r ' + (ok ? 'ok' : 'ng'); d.textContent = title + '：' + (ok ? 'OK ' : 'だめ ') + msg; log.push(d.textContent); }; }
+function jsonp(url, ms = 25000) {
+  return new Promise((ok, ng) => {
+    const cb = '__ck' + Date.now().toString(36) + Math.floor(Math.random() * 1e6), el = document.createElement('script');
+    const done = () => { delete window[cb]; el.remove(); clearTimeout(t); };
+    const t = setTimeout(() => { done(); ng(new Error('時間内に答えがありませんでした')); }, ms);
+    window[cb] = j => { done(); ok(j); };
+    el.onerror = () => { done(); ng(new Error('受け口に問い合わせできませんでした（スクリプトとして読み込めない）')); };
+    el.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(el);
+  });
+}
+async function run() {
+  out.innerHTML = ''; log = [];
+  const info = ['日時：' + new Date().toLocaleString(), 'ブラウザ：' + navigator.userAgent, '撮影コード：' + CODE, 'ページ：' + location.href];
+  const d = document.createElement('div'); d.className = 'r'; d.textContent = info.join('\n'); out.appendChild(d); log.push(...info);
+  for (const [title, url] of [['1. 受け口の版（JSONP）', GAS], ['2. 棚の一覧（JSONP・撮影ページと同じ）', GAS + '?code=' + encodeURIComponent(CODE) + '&dev=check']]) {
+    const f = row(title), t0 = Date.now();
+    try { const j = await jsonp(url); f(!!j.ok, (Date.now() - t0) + 'ms ' + JSON.stringify(j)); } catch (e) { f(false, (Date.now() - t0) + 'ms ' + e.message); }
+  }
+  const f = row('3. 棚の一覧（fetch）'), t0 = Date.now();
+  try {
+    const r = await fetch(GAS + '?code=' + encodeURIComponent(CODE) + '&dev=check', { redirect: 'follow' });
+    const tx = await r.text();
+    f(r.ok && tx.trim().startsWith('{'), (Date.now() - t0) + 'ms 状態 ' + r.status + ' / 種類 ' + (r.headers.get('content-type') || '（不明）') + ' / 最後の URL ' + r.url.slice(0, 80) + '\n中身の先頭：' + tx.slice(0, 300));
+  } catch (e) { f(false, (Date.now() - t0) + 'ms ' + e.message); }
+}
+document.getElementById('again').onclick = run;
+document.getElementById('copy').onclick = async () => { try { await navigator.clipboard.writeText(log.join('\n')); alert('コピーしました'); } catch (e) { prompt('コピーしてください', log.join('\n')); } };
+run();
+</script></body></html>
