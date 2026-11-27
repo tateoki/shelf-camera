@@ -221,7 +221,7 @@
     <div id="debug"></div>
   </div>
   <div id="sideR">
-    <div id="shutterWrap"><button id="shutter" class="off" aria-label="撮る"></button><div id="camTools"></div></div>
+    <div id="shutterWrap"><button id="shutter" aria-label="撮る"></button><div id="camTools"></div></div>
     <button id="fallback">標準の<br>カメラで撮る</button>
   </div>
   <div id="afBox"><span>ピント固定</span></div>
@@ -618,7 +618,7 @@ function loop(t) {
   mark('ckSharp', 'ピント', okSharp, false);
   mark('ckStill', '揺れ', okStill, S.rot === null && t > 3000);
   mark('ckLight', '明るさ', okLight, false);
-  $('frame').classList.toggle('ok', all); $('shutter').classList.toggle('off', !all && !(ADMIN && FLOW === 'admin')); S.all = all; $('guide').classList.toggle('ok', all);
+  $('frame').classList.toggle('ok', all); S.all = all;   // シャッターはいつも白（2026-11-27：撮れないときは押すと赤い項目を知らせる） $('guide').classList.toggle('ok', all);
   S.ng = [!tl.ok && '角度', !okSharp && 'ピント', !okStill && '揺れ', !okLight && '明るさ'].filter(Boolean);
   $('guide').textContent = !tl.ok ? tl.msg : !okLight ? '暗すぎます。明るい所で撮ってください' : !okStill ? 'スマホを止めてください' : !okSharp ? 'ピントが合っていません。' + (IS.mode === 'cover' ? '表紙' : '背表紙') + 'を画面でタップするか、少し離れてください'
     : all ? '撮影できます' : '';
