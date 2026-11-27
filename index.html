@@ -295,7 +295,7 @@ const DEBUG = P.has('debug');
 const $ = id => document.getElementById(id);
 
 let shelf = P.get('shelf') || '';
-const KID = { root: '', list: [], sel: null, left: null };   // 施設：いちばん上の棚の名前・配下の棚・選んだ棚
+const KID = { root: '', list: [], sel: null, left: null, loading: false, err: '', t0: 0, tries: 0 };   // 施設：いちばん上の棚の名前・配下の棚・選んだ棚
 if (ADMIN) {
   $('shelfBox').style.display = 'flex';
   if (KEY) { $('keyIn').style.display = 'none'; $('keyLbl').style.display = 'none'; }
@@ -364,7 +364,15 @@ function kidApply(name, list) {
   if ($('cam').style.display === 'block') { shelfLabel(); layout(); if (!KID.sel && KID.list.length > 1) { $('btnKid').style.display = 'inline-block'; $('kidPop').style.display = 'flex'; } }
   if (KID.list.length > 1 && $('cam').style.display === 'block') $('btnKid').style.display = 'inline-block';
 }
+// 棚がまだ届いていないときの知らせ（失敗していたら、その理由を出して読み込み直す）
+function kidWait() {
+  if (!KID.loading && (KID.err || !KID.list.length)) { KID.tries = 0; loadKids(); }
+  const sec = KID.t0 ? Math.round((Date.now() - KID.t0) / 1000) : 0;
+  return KID.err ? '棚を読み込めませんでした（' + KID.err + '）。もう一度読み込んでいます' : '棚を読み込んでいます（' + sec + '秒）。少し待ってください';
+}
 async function loadKids() {
+  if (KID.loading) return;
+  KID.loading = true; KID.t0 = Date.now(); KID.tries++;
   $('kidBox').style.display = 'block';
   const name = (P.get('n') || '').trim();
   if (P.get('d') === '1' && name) kidApply(name, [{ id: '', label: name }]);   // QR を作ったときは配下の棚がなかった：すぐ出す（あとで棚が増えていることがあるので、裏で読み直す）
@@ -377,12 +385,19 @@ async function loadKids() {
     if (!j.ok) throw new Error(j.error || '読み込めませんでした');
     KID.left = j.left;
     try { localStorage.setItem('sc_kids_' + CODE, JSON.stringify({ name: j.name, list: j.kids || [] })); } catch (e) {}
+    KID.err = ''; KID.loading = false;
     kidApply(j.name, j.kids || []);
-  } catch (e) { if (!cached) { if (!(P.get('d') === '1' && name)) $('kidList').innerHTML = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; } }
+  } catch (e) {
+    KID.loading = false; KID.err = e.message;
+    if (!KID.list.length) {   // 一覧がまだないときは、少しおいて自動で読み込み直す（3回まで。そのあとはシャッターを押したときに読み直す）
+      if ($('cam').style.display === 'block') { shelfLabel(); toast('棚を読み込めませんでした（' + e.message + '）' + (KID.tries < 3 ? '。もう一度読み込みます' : ''), 3500); }
+      if (KID.tries < 3) setTimeout(loadKids, 4000);
+    }
+    if (!cached) { if (!(P.get('d') === '1' && name)) $('kidList').innerHTML = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; } }
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
 function shelfLabel() {
-  $('shelfName').textContent = ADMIN && !CODE ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + (KID.sel ? KID.sel.label : KID.root);
+  $('shelfName').textContent = ADMIN && !CODE ? (shelf ? '棚：' + shelf : '棚：振り分け待ち（あとで選びます）') : '棚：' + (KID.sel ? KID.sel.label : KID.root) + (!KID.sel && !KID.list.length ? (KID.err ? '（読み込めませんでした）' : '（読み込み中…）') : '');
 }
 
 const S = { ending: null, beta: null, gamma: null, rot: null, tiltOk: false, sharp: 0, move: 0, light: 0, prev: null, okSince: 0, sent: 0, queue: [], busy: false, shot: null, orientWarn: false };
@@ -700,7 +715,7 @@ $('shutter').onclick = async () => {
   if (S.taking) return;
   if (CODE && !KID.sel) {   // 施設：棚がまだ決まっていない（読み込み中・選んでいない）
     if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
-    toast(KID.list.length ? '写真を入れる棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
+    toast(KID.list.length ? '写真を入れる棚を選んでください' : kidWait(), 3500); return;
   }
   if (!S.all && !(ADMIN && FLOW === 'admin')) {   // まだ撮れない：赤い項目を知らせる（管理者モードは赤があっても撮れる）
     const ng = S.ng || [];
@@ -867,7 +882,7 @@ function isbn13(v) {   // 10桁・13桁 → 13桁（チェック数字が合わ�
 function setMode(m) {
   if (m === 'isbn' && CODE && !KID.sel) {
     if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
-    toast(KID.list.length ? '先に棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
+    toast(KID.list.length ? '先に棚を選んでください' : kidWait(), 3500); return;
   }
   IS.mode = m;
   document.body.classList.toggle('isbn', m === 'isbn'); document.body.classList.toggle('cover', m === 'cover');
