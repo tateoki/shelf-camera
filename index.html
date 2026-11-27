@@ -80,7 +80,8 @@
   #btnLib { display: none; position: absolute; bottom: calc(env(safe-area-inset-bottom) + 70px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 214, 10, .9); color: #000; font-weight: 700; line-height: 1.4; }
   #fallback { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); font-size: 11px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .15); color: #fff; line-height: 1.4; }
   #review { position: fixed; inset: 0; display: none; background: #000; flex-direction: column; }
-  #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; }
+  #review { overflow: hidden; }
+  #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; touch-action: none; transform-origin: center center; }
   #reviewMsg { padding: 10px 16px; text-align: center; font-size: 15px; }
   #reviewMsg.ng { color: #ff9ea1; }
   #reviewBtns { display: flex; gap: 12px; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom) + 18px); }
@@ -177,7 +178,7 @@
   #btnNoCover { position: absolute; display: none; z-index: 3; font-size: 14px; font-weight: 700; height: 44px; padding: 0; border-radius: 22px; background: rgba(255, 255, 255, .92); color: #000; }
   body.cover #sentN { font-size: 15px; }
   /* 2026-11-27 表紙：重なりの順は シャッター・ズーム（いちばん前）→ 枠 → 赤・緑の表示（上に横に並べる） */
-  body.cover #frame { z-index: 2; } body.cover #sideR { z-index: 4; } body.cover #sideL { z-index: 1; width: calc(100% - 110px) !important; } body.cover #modeCol { z-index: 5; }
+  body.cover #frame { z-index: 2; } body.cover #sideR { z-index: 4; } body.cover #sideL { z-index: 6; width: calc(100% - 110px) !important; pointer-events: none; } body.cover #sideL button { pointer-events: auto; } body.cover #modeCol { z-index: 5; }
   body.cover #checks { position: fixed; top: calc(var(--bar, 64px) + 26px); left: 8px; right: 100px; flex-direction: row; flex-wrap: wrap; margin-top: 0; gap: 6px; }
   body.cover #checks span { font-size: 12px; padding: 5px 10px; }
   body.cover #guide { position: fixed; top: calc(var(--bar, 64px) + 92px); left: 8px; right: 100px; font-size: 13px; }
@@ -377,7 +378,7 @@ async function loadKids() {
     KID.left = j.left;
     try { localStorage.setItem('sc_kids_' + CODE, JSON.stringify({ name: j.name, list: j.kids || [] })); } catch (e) {}
     kidApply(j.name, j.kids || []);
-  } catch (e) { if (!cached) { $('kidList').innerHTML = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; } }
+  } catch (e) { if (!cached) { if (!(P.get('d') === '1' && name)) $('kidList').innerHTML = ''; $('startErr').textContent = 'この QR コードの棚を読み込めませんでした（' + e.message + '）'; } }
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-kid]'); if (b) kidPick(b.dataset.kid); });
 function shelfLabel() {
@@ -548,7 +549,7 @@ function layout() {
   const mcH = LAND && $('modeCol').offsetHeight ? $('modeCol').offsetHeight + 8 : 0;   // 横持ち：右の列は上に横に並ぶ
   FR = { x: (W - w) / 2, y: LAND ? Math.max(($('topBar').offsetHeight || 50) + 24 + mcH, (H - h) / 2) : (H - h) / 2, w, h };
   if (IS.mode === 'cover') {   // 表紙：縦長の四角（表紙の形。横持ちでも縦長のまま・写真は回さない）
-    const cw = (LAND ? Math.min(W * 0.3, H * 0.62 / 1.42) : W * 0.45) * 1.2, ch = cw * 1.42;   // 2026-11-27：1.2 倍（中央のまま。端はレンズのゆがみが出るため寄せない）
+    const cw = (LAND ? Math.min(W * 0.3, H * 0.62 / 1.42) : W * 0.45) * 1.44, ch = cw * 1.42;   // 2026-11-27：1.2 倍、さらに 1.2 倍（中央のまま。端はレンズのゆがみが出るため寄せない）
     FR = { x: (W - cw) / 2, y: LAND ? Math.max(($('topBar').offsetHeight || 50) + 24 + mcH, (H - ch) / 2) : (H - ch) / 2, w: cw, h: ch };
   }
   Object.assign($('covTip').style, { left: FR.x + 'px', width: FR.w + 'px', top: (FR.y - 30) + 'px' });
@@ -675,7 +676,28 @@ async function afTap(x, y) {
 }
 
 // ---------------- 撮る → 撮った後の確認 ----------------
-$('shutter').onclick = () => {
+// 撮る写真：Android（Chrome）はカメラの写真モード（ImageCapture.takePhoto。標準のカメラと同じくらいの画質）。できない機種・iPhone は動画の1こま
+//   写真と動画で縦横の比が違うことがあるので、枠の位置は写真の上に合わせ直す（写真は切らずに全部送る）
+async function grabStill() {
+  const v = $('video'), vw = v.videoWidth, vh = v.videoHeight;
+  if (CAM.track && typeof ImageCapture !== 'undefined' && !CAM.icOff) {
+    try {
+      const ic = CAM.ic && CAM.icTrack === CAM.track ? CAM.ic : (CAM.ic = new ImageCapture(CAM.track), CAM.icTrack = CAM.track, CAM.ic);
+      const blob = await ic.takePhoto();
+      const bm = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+      if ((bm.width < bm.height) === (vw < vh) && bm.width > vw * 0.9) {   // 向きが同じで、動画より大きいときだけ使う
+        const c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
+        const sc = (bm.width / bm.height > vw / vh) ? bm.height / vh : bm.width / vw;
+        return { c, map: r => ({ x: Math.round(r.x * sc + (bm.width - vw * sc) / 2), y: Math.round(r.y * sc + (bm.height - vh * sc) / 2), w: Math.round(r.w * sc), h: Math.round(r.h * sc) }), still: true };
+      }
+      CAM.icOff = 'size';   // 向き・大きさが合わない機種：この後は動画の1こまで撮る
+    } catch (e) { CAM.icOff = String(e && e.message || e); }
+  }
+  const c = document.createElement('canvas'); c.width = vw; c.height = vh; c.getContext('2d').drawImage(v, 0, 0);
+  return { c, map: r => r, still: false };
+}
+$('shutter').onclick = async () => {
+  if (S.taking) return;
   if (CODE && !KID.sel) {   // 施設：棚がまだ決まっていない（読み込み中・選んでいない）
     if (KID.list.length > 1) { $('kidList2').innerHTML = kidHtml(); $('kidPop').style.display = 'flex'; }
     toast(KID.list.length ? '写真を入れる棚を選んでください' : '棚を読み込んでいます。少し待ってください', 2500); return;
@@ -686,9 +708,9 @@ $('shutter').onclick = () => {
     ng.forEach(n => { const el = $({ '角度': 'ckTilt', 'ピント': 'ckSharp', '揺れ': 'ckStill', '明るさ': 'ckLight' }[n]); el.classList.remove('blink'); void el.offsetWidth; el.classList.add('blink'); });
     return;
   }
-  const v = $('video'); let c = document.createElement('canvas');
-  c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
-  let r = screenToVideo(FR); const m = measure(c, r, 120);
+  S.taking = true;
+  let g; try { g = await grabStill(); } finally { S.taking = false; }
+  let c = g.c, r = g.map(screenToVideo(FR)); const m = measure(c, r, 120);
   const blurred = m.sharp < Math.max(CONFIG.SHARP_MIN, S.sharp * CONFIG.SHARP_AFTER_RATIO);   // 撮る前と同じ「いちばんくっきりした帯」で比べる
   const tl = tiltState();
   if (LAND && IS.mode !== 'cover') {   // 横持ち：写真を右に90度回して、背表紙を縦にして送る（枠の左＝本の上が、写真の上になる）
@@ -697,14 +719,9 @@ $('shutter').onclick = () => {
     r = { x: c.height - (r.y + r.h), y: r.x, w: r.h, h: r.w };
     c = c2;
   }
-  S.shot = { canvas: c, frame: r, land: LAND, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page', kind: IS.mode === 'cover' ? 'cover' : 'spine' };
-  if (ADMIN && FLOW === 'admin') {   // 管理者モード：撮った後の確認を出さずにすぐ送る（続けて撮れる）。撮れたことは画面が一瞬白く光って知らせる
-    const shot = S.shot; S.shot = null;
-    flash();
-    c.toBlob(b => { shot.blob = b; enqueue(shot); }, 'image/jpeg', CONFIG.JPEG_Q);
-    if (LOOP()) { const nx = nextMode(shot.kind); setTimeout(() => goNext(nx), 300); }   // 書籍ごと：背表紙 → 表紙 → 次の本の ISBN
-    return;
-  }
+  S.shot = { canvas: c, frame: r, land: LAND, sharp: +m.sharp.toFixed(2), sharp_live: +S.sharp.toFixed(2), light: +m.light.toFixed(1), beta: S.beta, gamma: S.gamma, blurred, at: new Date(), source: 'page', kind: IS.mode === 'cover' ? 'cover' : 'spine', still: g.still };
+  // 2026-11-27 しげお決定：管理者モードも、撮った後に［送る］［撮り直す］を出す
+  rzReset();
   c.toBlob(b => { S.shot.blob = b; $('reviewImg').src = URL.createObjectURL(b); }, 'image/jpeg', CONFIG.JPEG_Q);
   $('reviewMsg').textContent = blurred ? 'ぼやけています。撮り直してください' : (S.shot.kind === 'cover' ? '表紙が枠に入っていますか？' : '背表紙が枠に上から下まで入っていますか？');
   $('reviewMsg').className = blurred ? 'ng' : '';
@@ -712,6 +729,33 @@ $('shutter').onclick = () => {
   $('btnSend').className = blurred ? 'sub' : ''; $('btnRetake').className = blurred ? '' : 'sub';
   $('review').style.display = 'flex';
 };
+// 撮った後の確認：2本の指で広げて大きく見る（もう一度すばやく2回たたくと元の大きさ）。1本の指で動かす
+const RZ = { s: 1, x: 0, y: 0, pinch: null, pan: null, tap: 0 };
+function rzApply() { $('reviewImg').style.transform = `translate(${RZ.x}px, ${RZ.y}px) scale(${RZ.s})`; }
+function rzReset() { RZ.s = 1; RZ.x = 0; RZ.y = 0; RZ.pinch = RZ.pan = null; rzApply(); }
+(() => {
+  const im = $('reviewImg'), dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mid = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+  im.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (e.touches.length === 2) { const m = mid(e.touches[0], e.touches[1]); RZ.pinch = { d: dist(e.touches[0], e.touches[1]), s: RZ.s, mx: m.x, my: m.y, x: RZ.x, y: RZ.y }; RZ.pan = null; }
+    else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - RZ.tap < 300) { if (RZ.s > 1.05) rzReset(); else { RZ.s = 2.5; rzApply(); } RZ.tap = 0; return; }
+      RZ.tap = now; RZ.pan = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, x: RZ.x, y: RZ.y };
+    }
+  }, { passive: false });
+  im.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (RZ.pinch && e.touches.length === 2) {
+      const m = mid(e.touches[0], e.touches[1]);
+      RZ.s = Math.max(1, Math.min(8, RZ.pinch.s * dist(e.touches[0], e.touches[1]) / RZ.pinch.d));
+      RZ.x = RZ.pinch.x + (m.x - RZ.pinch.mx); RZ.y = RZ.pinch.y + (m.y - RZ.pinch.my); rzApply();
+    } else if (RZ.pan && e.touches.length === 1 && RZ.s > 1) {
+      RZ.x = RZ.pan.x + e.touches[0].clientX - RZ.pan.x0; RZ.y = RZ.pan.y + e.touches[0].clientY - RZ.pan.y0; rzApply();
+    }
+  }, { passive: false });
+  im.addEventListener('touchend', e => { if (e.touches.length < 2) RZ.pinch = null; if (!e.touches.length) RZ.pan = null; if (RZ.s <= 1.02) rzReset(); });
+})();
 function flash() {
   let f = $('flash');
   if (!f) { f = document.createElement('div'); f.id = 'flash'; f.style.cssText = 'position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:9;transition:opacity .25s'; document.body.appendChild(f); }
