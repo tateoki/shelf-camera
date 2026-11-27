@@ -84,7 +84,7 @@
   #review img { flex: 1; min-height: 0; object-fit: contain; width: 100%; touch-action: none; transform-origin: center center; }
   #reviewMsg { padding: 10px 16px; text-align: center; font-size: 15px; }
   #reviewMsg.ng { color: #ff9ea1; }
-  #reviewBtns { display: flex; gap: 12px; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom) + 18px); }
+  #reviewBtns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom) + 18px); }
   #reviewBtns .sub { background: rgba(255, 255, 255, .15); color: #fff; }
   #toast { white-space: pre-line; position: fixed; left: 50%; top: 40%; transform: translateX(-50%); background: rgba(0, 0, 0, .8); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; z-index: 9; max-width: 86%; text-align: center; }
   canvas { display: none; }
@@ -239,7 +239,7 @@
 <div id="review">
   <img id="reviewImg" alt="">
   <div id="reviewMsg"></div>
-  <div id="reviewBtns"><button class="sub" id="btnRetake">撮り直す</button><button id="btnSend">送る</button></div>
+  <div id="reviewBtns"><button class="sub" id="btnRetake">撮り直す</button><button id="btnSend">送る</button><button id="btnSaveEnd" style="display:none">保存して終わる</button></div>
 </div>
 
 <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
@@ -772,8 +772,11 @@ $('shutter').onclick = async () => {
   c.toBlob(b => { S.shot.blob = b; $('reviewImg').src = URL.createObjectURL(b); }, 'image/jpeg', CONFIG.JPEG_Q);
   $('reviewMsg').textContent = blurred ? 'ぼやけています。撮り直してください' : (S.shot.kind === 'cover' ? '表紙が枠に入っていますか？' : '背表紙が枠に上から下まで入っていますか？');
   $('reviewMsg').className = blurred ? 'ng' : '';
-  $('btnSend').textContent = blurred ? 'このまま送る' : '送る';
+  // 2026-11-27 しげお決定：利用者モードの表紙の後は［撮り直す］［保存して次の本を撮る］［保存して終わる］（すぐ ISBN の画面になって迷わないように）
+  const covEnd = FLOW === 'user' && S.shot.kind === 'cover';
+  $('btnSend').textContent = covEnd ? (blurred ? 'このまま保存して次の本を撮る' : '保存して次の本を撮る') : (blurred ? 'このまま送る' : '送る');
   $('btnSend').className = blurred ? 'sub' : ''; $('btnRetake').className = blurred ? '' : 'sub';
+  $('btnSaveEnd').style.display = covEnd ? '' : 'none'; $('btnSaveEnd').className = blurred ? 'sub' : '';
   $('review').style.display = 'flex';
 };
 // 撮った後の確認：2本の指で広げて大きく見る（もう一度すばやく2回たたくと元の大きさ）。1本の指で動かす
@@ -815,6 +818,14 @@ $('btnSend').onclick = () => {
   $('review').style.display = 'none'; S.shot = null;
   enqueue(s);
   if (LOOP()) goNext(nextMode(s.kind));   // 利用者モード・書籍ごと：背表紙 → 表紙 → 次の本の ISBN
+};
+$('btnSaveEnd').onclick = async () => {   // 利用者モードの表紙：保存して終わる（送り終わるまで待つ画面へ）
+  const s = S.shot; if (!s || !s.blob) return;
+  $('review').style.display = 'none'; S.shot = null;
+  await enqueue(s);
+  setMode('isbn');   // 次に撮影に戻ったときは、次の本の ISBN から
+  if (!S.queue.length) { endDone(); return; }
+  camStop(); $('cam').style.display = 'none'; S.ending = 'wait'; endWaitUi();
 };
 
 // 次に撮るもの：背表紙の次は表紙、表紙の次は次の本の ISBN（利用者モード・書籍ごと）
