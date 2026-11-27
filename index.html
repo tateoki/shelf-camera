@@ -489,6 +489,25 @@ $('kidPop').onclick = e => { if (e.target.id === 'kidPop') $('kidPop').style.dis
 //     ダブルタップ（シャッターを続けて押すときなど）ではピントを動かさない
 //   ・ズーム：1×・1.25×・1.5×・2×（実際は 1.9 倍）のボタンとピンチ（2本指。1.9 倍まで）
 const CAM = { track: null, caps: {}, zoom: null, poi: false, afLock: null };
+try { CAM.icOff = localStorage.getItem('sc_ic_off') || ''; } catch (e) {}   // 写真モードで撮ると映像が止まる機種（前に止まった）：写真モードを使わない
+// カメラの映像が止まったら開き直す（Android で写真モードで撮った後に映像が止まる・真っ暗になる機種がある。2026-11-27）
+//   2秒ごとに、動画の時刻が進んでいるかを見る。止まっていたら（2回続けて）開き直す
+const CAMW = { last: -1, still: 0, busy: false };
+function camAlive() { const v = $('video'), tr = CAM.track; return !!(v.srcObject && tr && tr.readyState === 'live' && !tr.muted); }
+async function camReopen(why) {
+  if (CAMW.busy) return; CAMW.busy = true;
+  try { camStop(); await camOpen(); toast('カメラを開き直しました', 2000); } catch (e) { toast('カメラを開けませんでした（' + e.name + '）', 4000); }
+  CAMW.last = -1; CAMW.still = 0; CAMW.busy = false;
+}
+setInterval(() => {
+  const v = $('video');
+  if ($('cam').style.display !== 'block' || S.ending || !v.srcObject || CAMW.busy || document.hidden) { CAMW.last = -1; CAMW.still = 0; return; }
+  if (v.paused) { try { v.play(); } catch (e) {} }
+  const tm = v.currentTime;
+  if (!camAlive() || tm === CAMW.last) CAMW.still++; else CAMW.still = 0;
+  CAMW.last = tm;
+  if (CAMW.still >= 2) camReopen('止まった');
+}, 2000);
 async function camInit(tr) {
   CAM.track = tr;
   try { CAM.caps = tr.getCapabilities ? tr.getCapabilities() : {}; } catch (e) { CAM.caps = {}; }
@@ -706,7 +725,11 @@ async function grabStill() {
   if (CAM.track && typeof ImageCapture !== 'undefined' && !CAM.icOff) {
     try {
       const ic = CAM.ic && CAM.icTrack === CAM.track ? CAM.ic : (CAM.ic = new ImageCapture(CAM.track), CAM.icTrack = CAM.track, CAM.ic);
+      const t0 = $('video').currentTime;
       const blob = await ic.takePhoto();
+      setTimeout(() => {   // 写真モードで撮った後に映像が止まった機種：この後は写真モードを使わず、カメラを開き直す
+        if (!camAlive() || $('video').currentTime === t0) { CAM.icOff = 'freeze'; try { localStorage.setItem('sc_ic_off', 'freeze'); } catch (e) {} camReopen('写真モードの後'); }
+      }, 1500);
       const bm = await createImageBitmap(blob, { imageOrientation: 'from-image' });
       if ((bm.width < bm.height) === (vw < vh) && bm.width > vw * 0.9) {   // 向きが同じで、動画より大きいときだけ使う
         const c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
